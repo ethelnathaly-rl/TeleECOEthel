@@ -79,6 +79,22 @@ Por seguridad y tamaño, el repositorio excluye:
 - Backups locales.
 - Binarios pesados como `go2rtc.exe` y herramientas descargadas.
 
+## Flujo de cambios en lenguaje natural
+
+Para no mezclar instrucciones técnicas fragmentadas en el chat, los cambios concretos del producto se escriben en Markdown dentro de `docs/`:
+
+- `docs/CAMBIOS_SOLICITADOS.md`: pedidos concretos editables por el usuario.
+- `docs/PRODUCT_SPEC.md`: especificación viva del producto.
+- `docs/DECISION_LOG.md`: decisiones importantes y razones.
+- `docs/IMPLEMENTATION_PLAN.md`: traducción técnica de pedidos a tareas verificables.
+
+Flujo recomendado:
+
+1. Editar `docs/CAMBIOS_SOLICITADOS.md`.
+2. Avisar en el chat administrativo: `ya edité CAMBIOS_SOLICITADOS.md`.
+3. Revisar el diff contra Git.
+4. Implementar, verificar y commitear cambios.
+
 ## Preparación para GitHub
 
 Este proyecto está preparado para Git local y futura publicación en GitHub, pero antes de hacer `push` se debe revisar:
