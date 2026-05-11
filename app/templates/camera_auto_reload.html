@@ -36,12 +36,12 @@
 </head>
 <body>
     <iframe id="cam" allow="fullscreen; autoplay; camera; microphone"></iframe>
-    <div class="status" id="status">Cámara RCP · MSE</div>
+    <div class="status" id="status">Cámara RCP · WebRTC</div>
     <button class="reload-btn" type="button" onclick="reloadCamera('manual')">Reconectar cámara</button>
 
     <script>
         const host = window.location.hostname;
-        const baseUrl = `http://${host}:1984/stream.html?src=camara1&mode=mse`;
+        const baseUrl = `http://${host}:1984/webrtc.html?src=camara1`;
         const iframe = document.getElementById('cam');
         const statusEl = document.getElementById('status');
         let reloads = 0;
@@ -58,18 +58,18 @@
             reloads += 1;
             const url = `${baseUrl}&_=${now}`;
             iframe.src = url;
-            setStatus(`Cámara RCP · MSE · reconexión ${reloads} (${reason})`);
+            setStatus(`Cámara RCP · WebRTC · conexión ${reloads} (${reason})`);
         }
 
         iframe.addEventListener('load', () => {
-            setStatus(`Cámara RCP · MSE · activa${reloads ? ' · reconexiones ' + reloads : ''}`);
+            setStatus(`Cámara RCP · WebRTC · activa${reloads ? ' · conexiones ' + reloads : ''}`);
         });
 
-        // Primera carga únicamente. Después de esto NO hay reconexiones automáticas:
-        // con la configuración actual Tuya/go2rtc, una recarga por foco/retorno a
-        // pantalla puede cortar una señal que ya está sana y estable. Si algún día
-        // el visor queda congelado, el operador usará el botón "Reconectar cámara"
-        // de forma manual, sin afectar la grabación FFmpeg del servidor.
+        // Primera carga únicamente. Después de esto NO hay reconexiones automáticas.
+        // Se usa WebRTC en vez de MSE porque MSE puede quedar en error si Tuya/go2rtc
+        // corta o reinicia fragmentos del stream; WebRTC es más adecuado para visor
+        // de cámara en vivo. Si el visor queda congelado, el operador usará el botón
+        // "Reconectar cámara" de forma manual, sin afectar la grabación RTSP/FFmpeg.
         reloadCamera('inicio');
     </script>
 </body>
