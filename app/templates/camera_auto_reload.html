@@ -12,64 +12,112 @@
             left: 10px;
             bottom: 8px;
             z-index: 5;
-            color: rgba(255,255,255,.75);
-            background: rgba(0,0,0,.45);
+            color: rgba(255,255,255,.85);
+            background: rgba(0,0,0,.55);
             font: 12px/1.3 system-ui, sans-serif;
             padding: 4px 8px;
             border-radius: 8px;
             pointer-events: none;
         }
-        .reload-btn {
+        .controls {
             position: fixed;
             right: 10px;
             bottom: 8px;
             z-index: 6;
-            color: rgba(255,255,255,.9);
+            display: flex;
+            gap: 6px;
+            align-items: center;
             background: rgba(0,0,0,.55);
-            border: 1px solid rgba(255,255,255,.35);
+            border: 1px solid rgba(255,255,255,.25);
             border-radius: 8px;
-            padding: 5px 10px;
+            padding: 5px;
+        }
+        .controls button {
+            color: rgba(255,255,255,.92);
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.25);
+            border-radius: 6px;
+            padding: 4px 8px;
             font: 12px/1.3 system-ui, sans-serif;
             cursor: pointer;
         }
+        .controls button.active { background: rgba(13,110,253,.9); border-color: rgba(255,255,255,.45); }
     </style>
 </head>
 <body>
     <iframe id="cam" allow="fullscreen; autoplay; camera; microphone"></iframe>
-    <div class="status" id="status">Cámara RCP · WebRTC</div>
-    <button class="reload-btn" type="button" onclick="reloadCamera('manual')">Reconectar cámara</button>
+    <div class="status" id="status">Cámara RCP · preparando visor</div>
+    <div class="controls" aria-label="Controles de cámara RCP">
+        <button type="button" data-mode="auto" onclick="setMode('auto')">Auto</button>
+        <button type="button" data-mode="mse" onclick="setMode('mse')">MSE</button>
+        <button type="button" data-mode="webrtc" onclick="setMode('webrtc')">WebRTC</button>
+        <button type="button" onclick="reloadCamera('manual')">Reconectar</button>
+    </div>
 
     <script>
         const host = window.location.hostname;
-        const baseUrl = `http://${host}:1984/webrtc.html?src=camara1`;
         const iframe = document.getElementById('cam');
         const statusEl = document.getElementById('status');
+        const modeButtons = Array.from(document.querySelectorAll('[data-mode]'));
+        const STORAGE_KEY = 'teleecoe.rcp.camera.mode';
         let reloads = 0;
         let lastReload = 0;
+        let currentMode = localStorage.getItem(STORAGE_KEY) || 'webrtc';
+
+        const modeLabels = {
+            auto: 'Auto go2rtc',
+            mse: 'MSE',
+            webrtc: 'WebRTC'
+        };
 
         function setStatus(text) {
             statusEl.textContent = text;
         }
 
+        function urlForMode(mode, cacheBust) {
+            const stamp = cacheBust || Date.now();
+            if (mode === 'mse') {
+                return `http://${host}:1984/stream.html?src=camara1&mode=mse&_=${stamp}`;
+            }
+            if (mode === 'webrtc') {
+                return `http://${host}:1984/webrtc.html?src=camara1&_=${stamp}`;
+            }
+            // Modo Auto deja que go2rtc elija el reproductor disponible. Se mantiene
+            // como alternativa de diagnóstico, pero el modo predeterminado operativo
+            // para esta cámara Tuya queda en WebRTC porque fue el más estable.
+            return `http://${host}:1984/stream.html?src=camara1&_=${stamp}`;
+        }
+
+        function updateModeButtons() {
+            modeButtons.forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.mode === currentMode);
+            });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            localStorage.setItem(STORAGE_KEY, mode);
+            updateModeButtons();
+            reloadCamera(`modo ${modeLabels[mode] || mode}`);
+        }
+
         function reloadCamera(reason) {
             const now = Date.now();
-            if (now - lastReload < 2500) return;
+            if (now - lastReload < 1200) return;
             lastReload = now;
             reloads += 1;
-            const url = `${baseUrl}&_=${now}`;
-            iframe.src = url;
-            setStatus(`Cámara RCP · WebRTC · conexión ${reloads} (${reason})`);
+            iframe.src = urlForMode(currentMode, now);
+            setStatus(`Cámara RCP · ${modeLabels[currentMode]} · conexión ${reloads} (${reason})`);
         }
 
         iframe.addEventListener('load', () => {
-            setStatus(`Cámara RCP · WebRTC · activa${reloads ? ' · conexiones ' + reloads : ''}`);
+            setStatus(`Cámara RCP · ${modeLabels[currentMode]} · iframe cargado${reloads ? ' · conexiones ' + reloads : ''}`);
         });
 
-        // Primera carga únicamente. Después de esto NO hay reconexiones automáticas.
-        // Se usa WebRTC en vez de MSE porque MSE puede quedar en error si Tuya/go2rtc
-        // corta o reinicia fragmentos del stream; WebRTC es más adecuado para visor
-        // de cámara en vivo. Si el visor queda congelado, el operador usará el botón
-        // "Reconectar cámara" de forma manual, sin afectar la grabación RTSP/FFmpeg.
+        // Primera carga únicamente. No hay reconexiones automáticas por foco,
+        // visibilidad ni temporizador: las pruebas deben ser controladas. Para iterar
+        // sin tocar código, cambiar Auto/MSE/WebRTC y usar “Reconectar”.
+        updateModeButtons();
         reloadCamera('inicio');
     </script>
 </body>

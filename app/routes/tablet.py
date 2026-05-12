@@ -16,6 +16,12 @@ FFPROBE_BIN = os.environ.get('FFPROBE_BIN') or os.path.join(BASE_DIR, 'tools', '
 RECORDING_STREAM_URL = os.environ.get('RECORDING_STREAM_URL', 'rtsp://127.0.0.1:8554/camara1')
 MAX_RECORDING_SECONDS = os.environ.get('MAX_RECORDING_SECONDS', '3600')
 WARMUP_SECONDS = int(os.environ.get('WARMUP_SECONDS', '5'))
+RECORDING_FPS = os.environ.get('RECORDING_FPS', '15')
+RECORDING_SCALE = os.environ.get('RECORDING_SCALE', '1280:720')
+RECORDING_VIDEO_BITRATE = os.environ.get('RECORDING_VIDEO_BITRATE', '1800k')
+RECORDING_VIDEO_MAXRATE = os.environ.get('RECORDING_VIDEO_MAXRATE', '2200k')
+RECORDING_VIDEO_BUFSIZE = os.environ.get('RECORDING_VIDEO_BUFSIZE', '3600k')
+RECORDING_PRESET = os.environ.get('RECORDING_PRESET', 'veryfast')
 MIN_VALID_VIDEO_BYTES = int(os.environ.get('MIN_VALID_VIDEO_BYTES', '1024'))
 MIN_VALID_VIDEO_DURATION = float(os.environ.get('MIN_VALID_VIDEO_DURATION', '0.5'))
 
@@ -201,11 +207,15 @@ def start_record(estacion_id, alumno_id):
         "-i", RECORDING_STREAM_URL,
         "-t", MAX_RECORDING_SECONDS,
         "-an",
-        "-vf", f"select=gte(t\\,{WARMUP_SECONDS}),setpts=PTS-STARTPTS,fps=15,scale=640:-2",
+        "-vf", f"select=gte(t\\,{WARMUP_SECONDS}),setpts=PTS-STARTPTS,fps={RECORDING_FPS},scale={RECORDING_SCALE}:flags=lanczos",
         "-c:v", "libx264",
-        "-preset", "ultrafast",
+        "-preset", RECORDING_PRESET,
         "-tune", "zerolatency",
+        "-profile:v", "baseline",
         "-pix_fmt", "yuv420p",
+        "-b:v", RECORDING_VIDEO_BITRATE,
+        "-maxrate", RECORDING_VIDEO_MAXRATE,
+        "-bufsize", RECORDING_VIDEO_BUFSIZE,
         "-movflags", "+faststart",
         "-f", "mp4",
         temp_path1
