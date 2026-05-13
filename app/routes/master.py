@@ -6,6 +6,7 @@ import csv
 import io
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
+from sqlalchemy.exc import IntegrityError
 
 master_bp = Blueprint('master', __name__)
 
@@ -159,18 +160,35 @@ def examenes_admin():
 def alumnos_admin():
     examen_activo = get_active_exam()
     if request.method == 'POST':
-        id_val = request.form.get('id')
-        nombre = request.form.get('nombre')
-        cmp = request.form.get('cmp')
-        grupo = request.form.get('grupo')
-            
-        alumno = Alumno(nombre=nombre, cmp=cmp, grupo=int(grupo))
-        if id_val and str(id_val).isdigit():
+        id_val = (request.form.get('id') or '').strip()
+        nombre = (request.form.get('nombre') or '').strip()
+        cmp = (request.form.get('cmp') or '').strip() or None
+        grupo = (request.form.get('grupo') or '').strip()
+
+        if not nombre:
+            flash('El nombre del alumno es obligatorio.', 'danger')
+            return redirect(url_for('master.alumnos_admin'))
+        try:
+            grupo_int = int(grupo)
+        except (TypeError, ValueError):
+            flash('El grupo debe ser un número entero.', 'danger')
+            return redirect(url_for('master.alumnos_admin'))
+
+        alumno = Alumno(nombre=nombre, cmp=cmp, grupo=grupo_int)
+        if id_val:
+            if not id_val.isdigit():
+                flash('El código del alumno debe ser numérico.', 'danger')
+                return redirect(url_for('master.alumnos_admin'))
             alumno.id = int(id_val)
         db.session.add(alumno)
-        db.session.flush()
-        enroll_student(examen_activo, alumno)
-        db.session.commit()
+        try:
+            db.session.flush()
+            enroll_student(examen_activo, alumno)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('No se pudo agregar el alumno: el código o identificador ya existe.', 'danger')
+            return redirect(url_for('master.alumnos_admin'))
         flash('Alumno agregado exitosamente.', 'success')
         return redirect(url_for('master.alumnos_admin'))
         
@@ -188,10 +206,22 @@ def alumnos_editar(id):
     alumno = Alumno.query.get_or_404(id)
     examen_activo = get_active_exam()
     if request.method == 'POST':
-        alumno.nombre = request.form.get('nombre')
-        alumno.grupo = int(request.form.get('grupo'))
-        alumno.cmp = request.form.get('cmp')
-            
+        nombre = (request.form.get('nombre') or '').strip()
+        grupo = (request.form.get('grupo') or '').strip()
+        cmp = (request.form.get('cmp') or '').strip() or None
+        if not nombre:
+            flash('El nombre del alumno es obligatorio.', 'danger')
+            return redirect(url_for('master.alumnos_editar', id=id))
+        try:
+            grupo_int = int(grupo)
+        except (TypeError, ValueError):
+            flash('El grupo debe ser un número entero.', 'danger')
+            return redirect(url_for('master.alumnos_editar', id=id))
+
+        alumno.nombre = nombre
+        alumno.grupo = grupo_int
+        alumno.cmp = cmp
+
         db.session.commit()
         flash('Alumno actualizado correctamente.', 'success')
         return redirect(url_for('master.alumnos_admin'))
@@ -343,13 +373,27 @@ def alumnos_importar():
 @master_bp.route('/estaciones', methods=['GET', 'POST'])
 def estaciones_admin():
     if request.method == 'POST':
-        id_val = request.form.get('id')
-        nombre = request.form.get('nombre')
-        orden = int(request.form.get('orden'))
-        
-        estacion = Estacion(id=id_val, nombre=nombre, orden=orden)
+        id_val = (request.form.get('id') or '').strip()
+        nombre = (request.form.get('nombre') or '').strip()
+        orden = (request.form.get('orden') or '').strip()
+
+        if not id_val or not nombre:
+            flash('El ID y nombre de la estación son obligatorios.', 'danger')
+            return redirect(url_for('master.estaciones_admin'))
+        try:
+            orden_int = int(orden)
+        except (TypeError, ValueError):
+            flash('El orden de la estación debe ser un número entero.', 'danger')
+            return redirect(url_for('master.estaciones_admin'))
+
+        estacion = Estacion(id=id_val, nombre=nombre, orden=orden_int)
         db.session.add(estacion)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('No se pudo agregar la estación: el ID ya existe.', 'danger')
+            return redirect(url_for('master.estaciones_admin'))
         flash('Estación agregada.', 'success')
         return redirect(url_for('master.estaciones_admin'))
         
@@ -360,8 +404,19 @@ def estaciones_admin():
 def estaciones_editar(id):
     estacion = Estacion.query.get_or_404(id)
     if request.method == 'POST':
-        estacion.nombre = request.form.get('nombre')
-        estacion.orden = int(request.form.get('orden'))
+        nombre = (request.form.get('nombre') or '').strip()
+        orden = (request.form.get('orden') or '').strip()
+        if not nombre:
+            flash('El nombre de la estación es obligatorio.', 'danger')
+            return redirect(url_for('master.estaciones_editar', id=id))
+        try:
+            orden_int = int(orden)
+        except (TypeError, ValueError):
+            flash('El orden de la estación debe ser un número entero.', 'danger')
+            return redirect(url_for('master.estaciones_editar', id=id))
+
+        estacion.nombre = nombre
+        estacion.orden = orden_int
         db.session.commit()
         flash('Estación actualizada.', 'success')
         return redirect(url_for('master.estaciones_admin'))
@@ -371,9 +426,27 @@ def estaciones_editar(id):
 @master_bp.route('/estaciones/eliminar/<id>', methods=['POST'])
 def estaciones_eliminar(id):
     estacion = Estacion.query.get_or_404(id)
-    db.session.delete(estacion)
-    db.session.commit()
-    flash('Estación eliminada.', 'success')
+
+    try:
+        evaluaciones = Evaluacion.query.filter_by(estacion_id=estacion.id).all()
+        evaluacion_ids = [evaluacion.id for evaluacion in evaluaciones]
+        if evaluacion_ids:
+            EvaluacionDetalle.query.filter(EvaluacionDetalle.evaluacion_id.in_(evaluacion_ids)).delete(synchronize_session=False)
+            Evaluacion.query.filter(Evaluacion.id.in_(evaluacion_ids)).delete(synchronize_session=False)
+
+        for categoria in list(estacion.categorias):
+            for criterio in list(categoria.criterios):
+                db.session.delete(criterio)
+            db.session.delete(categoria)
+
+        db.session.delete(estacion)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash('No se pudo eliminar la estación porque tiene datos relacionados.', 'danger')
+        return redirect(url_for('master.estaciones_admin'))
+
+    flash('Estación eliminada junto con su rúbrica y evaluaciones asociadas.', 'success')
     return redirect(url_for('master.estaciones_admin'))
 
 @master_bp.route('/estaciones/<id>/constructor', methods=['GET'])
