@@ -8,13 +8,16 @@ def create_app():
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_sistema_evaluacion')
+    app.config['TEMPLATES_AUTO_RELOAD'] = os.environ.get('TEMPLATES_AUTO_RELOAD', 'true').lower() in ('1', 'true', 'yes', 'on')
     
-    # Configuracion basica para la base de datos local SQLite
+    # Configuracion basica para la base de datos local SQLite.
+    # Nota: Flask-SQLAlchemy interpreta sqlite:///archivo.db como relativo a instance/.
+    # Para instalaciones simples, normalizamos ese caso a una ruta absoluta en la raíz del proyecto.
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL',
-        'sqlite:///' + os.path.join(basedir, 'evaluaciones.db')
-    )
+    database_url = os.environ.get('DATABASE_URL', '').strip()
+    if not database_url or database_url == 'sqlite:///evaluaciones.db':
+        database_url = 'sqlite:///' + os.path.join(basedir, 'evaluaciones.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Inicializar las extensiones

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <div>
+        <h1>Gestión de Exámenes</h1>
+        <p class="text-muted mb-0">Crea nuevas convocatorias, cierra el examen actual y conserva históricos con fecha.</p>
+    </div>
+    <a href="{{ url_for('master.dashboard') }}" class="btn btn-secondary fs-5">Volver al Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">Nuevo examen / convocatoria</div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="accion" value="crear">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del examen *</label>
+                        <input type="text" class="form-control" name="nombre" placeholder="Ej. ECOE Junio 2026 - Grupo A" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción / notas</label>
+                        <textarea class="form-control" name="descripcion" rows="3" placeholder="Opcional"></textarea>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" value="1" id="copiarAlumnos" name="copiar_alumnos">
+                        <label class="form-check-label" for="copiarAlumnos">Copiar alumnos del examen activo actual</label>
+                    </div>
+                    <div class="alert alert-warning small">
+                        Al crear un nuevo examen, el examen activo actual se cerrará para conservar sus resultados históricos.
+                    </div>
+                    <button class="btn btn-success w-100" type="submit">Crear y activar examen</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">Acciones rápidas</div>
+            <div class="card-body">
+                {% if examen_activo %}
+                <p class="mb-2">Activo actual: <strong>{{ examen_activo.nombre }}</strong></p>
+                <form method="POST" onsubmit="return confirm('¿Cerrar el examen activo? Sus resultados quedarán archivados.');">
+                    <input type="hidden" name="accion" value="cerrar">
+                    <button class="btn btn-outline-danger w-100" type="submit">Cerrar examen activo</button>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">No hay examen activo.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">Histórico de exámenes</div>
+            <div class="card-body table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Inicio</th>
+                            <th>Cierre</th>
+                            <th>Alumnos</th>
+                            <th>Evaluaciones</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for examen in examenes %}
+                        <tr>
+                            <td>{{ examen.id }}</td>
+                            <td>
+                                <strong>{{ examen.nombre }}</strong>
+                                {% if examen.descripcion %}<br><small class="text-muted">{{ examen.descripcion }}</small>{% endif %}
+                            </td>
+                            <td><span class="badge bg-{% if examen.estado == 'activo' %}success{% elif examen.estado == 'cerrado' %}secondary{% else %}dark{% endif %}">{{ examen.estado }}</span></td>
+                            <td>{{ examen.fecha_inicio.strftime('%Y-%m-%d %H:%M') if examen.fecha_inicio else '-' }}</td>
+                            <td>{{ examen.fecha_cierre.strftime('%Y-%m-%d %H:%M') if examen.fecha_cierre else '-' }}</td>
+                            <td>{{ examen.alumnos|length }}</td>
+                            <td>{{ examen.evaluaciones|length }}</td>
+                            <td class="text-center">
+                                {% if examen.estado != 'activo' %}
+                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Activar este examen? El activo actual se cerrará.');">
+                                    <input type="hidden" name="accion" value="activar">
+                                    <input type="hidden" name="examen_id" value="{{ examen.id }}">
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Activar</button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-1" data-bs-toggle="modal" data-bs-target="#modalEliminarExamen{{ examen.id }}">
+                                    Eliminar
+                                </button>
+                                {% else %}
+                                <span class="text-success fw-bold">Activo</span>
+                                <span class="d-block text-muted small">No eliminable mientras está activo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" class="text-center text-muted">No hay exámenes registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for examen in examenes %}
+{% if examen.estado != 'activo' %}
+<div class="modal fade" id="modalEliminarExamen{{ examen.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Eliminar examen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="accion" value="eliminar">
+                    <input type="hidden" name="examen_id" value="{{ examen.id }}">
+                    <p class="fs-5 mb-2">Vas a eliminar:</p>
+                    <p class="fw-bold mb-3">{{ examen.nombre }}</p>
+                    <div class="alert alert-danger">
+                        Esta acción eliminará el examen, sus alumnos inscritos en esa convocatoria y sus evaluaciones asociadas. No elimina los alumnos globales.
+                    </div>
+                    <label class="form-label">Para confirmar escribe <strong>ELIMINAR</strong></label>
+                    <input type="text" class="form-control" name="confirmacion" placeholder="ELIMINAR" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Eliminar definitivamente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

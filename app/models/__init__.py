@@ -1,1 +1,1 @@
-from .models import Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
+from .models import Examen, ExamenAlumno, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle

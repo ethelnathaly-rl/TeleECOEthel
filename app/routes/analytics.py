@@ -1,10 +1,17 @@
 from flask import Blueprint, jsonify, render_template, request
-from app.models import Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
+from app.models import Examen, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
 from extensions import db
 from sqlalchemy import func
 import json
 
 analytics_bp = Blueprint('analytics', __name__)
+
+def current_exam_filter():
+    examen_id = request.args.get('examen_id', type=int)
+    if examen_id:
+        return examen_id
+    activo = Examen.query.filter_by(estado='activo').order_by(Examen.id.desc()).first()
+    return activo.id if activo else None
 
 @analytics_bp.route('/')
 def dashboard_view():
@@ -22,10 +29,17 @@ def api_summary():
     """
     total_alumnos = Alumno.query.count()
     total_estaciones = Estacion.query.count()
-    total_evaluaciones = Evaluacion.query.count()
+    examen_id = current_exam_filter()
+    eval_query = Evaluacion.query
+    if examen_id:
+        eval_query = eval_query.filter_by(examen_id=examen_id)
+    total_evaluaciones = eval_query.count()
     
     # Promedio global
-    promedio_global = db.session.query(func.avg(Evaluacion.puntaje_total)).scalar() or 0.0
+    promedio_query = db.session.query(func.avg(Evaluacion.puntaje_total))
+    if examen_id:
+        promedio_query = promedio_query.filter(Evaluacion.examen_id == examen_id)
+    promedio_global = promedio_query.scalar() or 0.0
 
     return jsonify({
         'total_alumnos': total_alumnos,
@@ -43,7 +57,10 @@ def api_items():
     estacion_filter = request.args.get('estacion_id')
     grupo_filter = request.args.get('grupo')
 
+    examen_id = current_exam_filter()
     query_evaluaciones = Evaluacion.query
+    if examen_id:
+        query_evaluaciones = query_evaluaciones.filter_by(examen_id=examen_id)
     if estacion_filter:
         query_evaluaciones = query_evaluaciones.filter_by(estacion_id=estacion_filter)
     if grupo_filter:
@@ -139,7 +156,10 @@ def api_stations():
     resultados = []
     
     for est in estaciones:
+        examen_id = current_exam_filter()
         query_eval = Evaluacion.query.filter_by(estacion_id=est.id)
+        if examen_id:
+            query_eval = query_eval.filter_by(examen_id=examen_id)
         if grupo_filter:
             query_eval = query_eval.join(Alumno).filter(Alumno.grupo == int(grupo_filter))
             
@@ -186,7 +206,10 @@ def export_csv():
     estacion_filter = request.args.get('estacion_id')
     grupo_filter = request.args.get('grupo')
 
+    examen_id = current_exam_filter()
     query_evaluaciones = Evaluacion.query
+    if examen_id:
+        query_evaluaciones = query_evaluaciones.filter_by(examen_id=examen_id)
     if estacion_filter:
         query_evaluaciones = query_evaluaciones.filter_by(estacion_id=estacion_filter)
     if grupo_filter:

@@ -1,8 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 mt-4">
-    <h1>Gestión de Alumnos</h1>
-    <a href="{{ url_for('master.dashboard') }}" class="btn btn-secondary fs-5">Volver al Dashboard</a>
+    <div>
+        <h1>Gestión de Alumnos</h1>
+        <p class="text-muted mb-0">Examen activo: <strong>{{ examen_activo.nombre if examen_activo else 'Sin examen activo' }}</strong></p>
+    </div>
+    <div>
+        <a href="{{ url_for('master.examenes_admin') }}" class="btn btn-outline-primary fs-5 me-2">Exámenes</a>
+        <a href="{{ url_for('master.dashboard') }}" class="btn btn-secondary fs-5">Volver al Dashboard</a>
+    </div>
 </div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -19,6 +25,24 @@
 <div class="row">
     <!-- Formulario para Agregar/Editar Alumno -->
     <div class="col-md-4">
+        <div class="card shadow-sm mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Importación masiva</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Descarga el modelo, complétalo en Excel y vuelve a subirlo como .xlsx o CSV.</p>
+                <a href="{{ url_for('master.alumnos_plantilla_xlsx') }}" class="btn btn-outline-success w-100 mb-2">Descargar modelo Excel (.xlsx)</a>
+                <a href="{{ url_for('master.alumnos_plantilla') }}" class="btn btn-outline-secondary w-100 mb-3">Descargar modelo CSV</a>
+                <form method="POST" action="{{ url_for('master.alumnos_importar') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Archivo Excel o CSV</label>
+                        <input type="file" class="form-control" name="archivo" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Importar alumnos al examen activo</button>
+                </form>
+            </div>
+        </div>
+
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">{% if alumno_edit %}Editar Alumno{% else %}Nuevo Alumno{% endif %}</h5>
@@ -26,12 +50,12 @@
             <div class="card-body">
                 <form method="POST" action="{% if alumno_edit %}{{ url_for('master.alumnos_editar', id=alumno_edit.id) }}{% else %}{{ url_for('master.alumnos_admin') }}{% endif %}">
                     <div class="mb-3">
-                        <label class="form-label">DNI / Código (ID Opcional)</label>
+                        <label class="form-label">Código / DNI (ID opcional)</label>
                         <input type="number" class="form-control" name="id" value="{{ alumno_edit.id if alumno_edit else '' }}" {% if alumno_edit %}readonly{% endif %}>
                         <small class="text-muted">Dejar en blanco para asignar automático</small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nombre Completo *</label>
+                        <label class="form-label">Nombre completo *</label>
                         <input type="text" class="form-control" name="nombre" value="{{ alumno_edit.nombre if alumno_edit else '' }}" required>
                     </div>
                     <div class="mb-3">
@@ -44,7 +68,7 @@
                     </div>
                     <div class="d-grid mt-4">
                         <button type="submit" class="btn btn-{% if alumno_edit %}warning{% else %}primary{% endif %}">
-                            {% if alumno_edit %}Guardar Cambios{% else %}Agregar Alumno{% endif %}
+                            {% if alumno_edit %}Guardar Cambios{% else %}Agregar alumno al examen activo{% endif %}
                         </button>
                         {% if alumno_edit %}
                         <a href="{{ url_for('master.alumnos_admin') }}" class="btn btn-outline-secondary mt-2">Cancelar Edición</a>
@@ -78,8 +102,8 @@
                             <td>G-{{ a.grupo }}</td>
                             <td class="text-center">
                                 <a href="{{ url_for('master.alumnos_editar', id=a.id) }}" class="btn btn-sm btn-warning">Editar</a>
-                                <form method="POST" action="{{ url_for('master.alumnos_eliminar', id=a.id) }}" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este alumno?\n¡Se borrarán también todas sus evaluaciones asociadas!');">
-                                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                                <form method="POST" action="{{ url_for('master.alumnos_eliminar', id=a.id) }}" class="d-inline" onsubmit="return confirm('¿Retirar este alumno solo del examen activo? Su histórico no se borrará.');">
+                                    <button type="submit" class="btn btn-sm btn-danger">Retirar</button>
                                 </form>
                             </td>
                         </tr>

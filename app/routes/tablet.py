@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for, jsonify
-from app.models.models import Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
+from app.models.models import Examen, ExamenAlumno, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
 from extensions import db
 import json
 import os
+import shlex
 import time
 import subprocess
+from datetime import datetime
 
 tablet_bp = Blueprint('tablet', __name__, url_prefix='/tablet')
 
@@ -24,6 +26,57 @@ RECORDING_VIDEO_BUFSIZE = os.environ.get('RECORDING_VIDEO_BUFSIZE', '3600k')
 RECORDING_PRESET = os.environ.get('RECORDING_PRESET', 'veryfast')
 MIN_VALID_VIDEO_BYTES = int(os.environ.get('MIN_VALID_VIDEO_BYTES', '1024'))
 MIN_VALID_VIDEO_DURATION = float(os.environ.get('MIN_VALID_VIDEO_DURATION', '0.5'))
+
+RCP_CAMERA_HLS_URL = os.environ.get('RCP_CAMERA_HLS_URL', '').strip()
+RCP_CAMERA_HLS_URL_COMMAND = os.environ.get('RCP_CAMERA_HLS_URL_COMMAND', '').strip()
+RCP_CAMERA_HLS_URL_TIMEOUT = int(os.environ.get('RCP_CAMERA_HLS_URL_TIMEOUT', '15'))
+RCP_CAMERA_DEFAULT_MODE = os.environ.get('RCP_CAMERA_DEFAULT_MODE', '').strip().lower()
+
+def get_active_exam():
+    return Examen.query.filter_by(estado='activo').order_by(Examen.id.desc()).first()
+
+def hls_configured():
+    return bool(RCP_CAMERA_HLS_URL or RCP_CAMERA_HLS_URL_COMMAND)
+
+def camera_default_mode():
+    if RCP_CAMERA_DEFAULT_MODE in {'hls', 'webrtc', 'mse', 'auto'}:
+        return RCP_CAMERA_DEFAULT_MODE
+    return 'hls' if hls_configured() else 'webrtc'
+
+def load_hls_url():
+    """Devuelve una URL HLS temporal sin guardar ni registrar credenciales."""
+    if RCP_CAMERA_HLS_URL:
+        return RCP_CAMERA_HLS_URL, 'env'
+
+    if not RCP_CAMERA_HLS_URL_COMMAND:
+        return None, None
+
+    completed = subprocess.run(
+        shlex.split(RCP_CAMERA_HLS_URL_COMMAND),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=RCP_CAMERA_HLS_URL_TIMEOUT
+    )
+    if completed.returncode != 0:
+        error = (completed.stderr or completed.stdout or '').strip()[:500]
+        raise RuntimeError(error or f'hls_url_command_failed:{completed.returncode}')
+
+    output = (completed.stdout or '').strip()
+    if not output:
+        raise RuntimeError('hls_url_command_empty_output')
+
+    try:
+        payload = json.loads(output)
+        if isinstance(payload, dict):
+            output = payload.get('url') or payload.get('hls_url') or payload.get('play_url') or ''
+    except json.JSONDecodeError:
+        pass
+
+    output = output.strip()
+    if not output:
+        raise RuntimeError('hls_url_missing_in_command_output')
+    return output, 'command'
 
 def recording_file_size(path):
     try:
@@ -285,23 +338,60 @@ def seleccionar_estacion():
     estaciones = Estacion.query.order_by(Estacion.orden).all()
     return render_template('tablet_index.html', estaciones=estaciones)
 
+@tablet_bp.route('/api/camera/hls-url')
+def camera_hls_url():
+    try:
+        hls_url, source = load_hls_url()
+    except Exception as exc:
+        return jsonify({"status": "error", "error": str(exc)[:500]}), 502
+
+    if not hls_url:
+        return jsonify({"status": "not_configured"}), 404
+
+    response = jsonify({"status": "ok", "url": hls_url, "source": source})
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
 @tablet_bp.route('/camera/auto-reload')
 def camera_auto_reload():
-    return render_template('camera_auto_reload.html')
+    return render_template(
+        'camera_auto_reload.html',
+        camera_default_mode=camera_default_mode(),
+        camera_hls_configured=hls_configured()
+    )
 
 @tablet_bp.route('/<estacion_id>/seleccionar')
 def seleccionar_alumno(estacion_id):
     estacion = Estacion.query.get_or_404(estacion_id)
-    alumnos = Alumno.query.all()
-    evaluados_ids = { e.alumno_id: True for e in Evaluacion.query.filter_by(estacion_id=estacion_id).all() }
-    return render_template('tablet_seleccionar.html', estacion=estacion, alumnos=alumnos, evaluados_ids=evaluados_ids)
+    examen_activo = get_active_exam()
+    if not examen_activo:
+        flash('No hay examen activo. Crea o activa un examen desde la PC maestra.', 'warning')
+        alumnos = []
+        evaluados_ids = {}
+    else:
+        alumnos = (
+            Alumno.query
+            .join(ExamenAlumno)
+            .filter(ExamenAlumno.examen_id == examen_activo.id)
+            .order_by(Alumno.grupo, Alumno.nombre)
+            .all()
+        )
+        evaluados_ids = {
+            e.alumno_id: True
+            for e in Evaluacion.query.filter_by(estacion_id=estacion_id, examen_id=examen_activo.id).all()
+        }
+    return render_template('tablet_seleccionar.html', estacion=estacion, alumnos=alumnos, evaluados_ids=evaluados_ids, examen_activo=examen_activo)
 
 @tablet_bp.route('/<estacion_id>/evaluar/<alumno_id>', methods=['GET', 'POST'])
 def evaluar(estacion_id, alumno_id):
     estacion = Estacion.query.get_or_404(estacion_id)
     alumno = Alumno.query.get_or_404(alumno_id)
+    examen_activo = get_active_exam()
+    if not examen_activo:
+        flash('No hay examen activo. Crea o activa un examen desde la PC maestra.', 'danger')
+        return redirect(url_for('tablet.seleccionar_alumno', estacion_id=estacion_id))
     
-    evaluacion = Evaluacion.query.filter_by(estacion_id=estacion_id, alumno_id=alumno_id).first()
+    evaluacion = Evaluacion.query.filter_by(estacion_id=estacion_id, alumno_id=alumno_id, examen_id=examen_activo.id).first()
     valores_previos = {}
     if evaluacion:
         for det in evaluacion.detalles:
@@ -309,7 +399,7 @@ def evaluar(estacion_id, alumno_id):
 
     if request.method == 'POST':
         if not evaluacion:
-            evaluacion = Evaluacion(estacion_id=estacion_id, alumno_id=alumno_id, puntaje_total=0)
+            evaluacion = Evaluacion(estacion_id=estacion_id, alumno_id=alumno_id, examen_id=examen_activo.id, puntaje_total=0)
             db.session.add(evaluacion)
             db.session.commit() # commit so evaluation gets an ID 
         else:
@@ -360,6 +450,14 @@ def evaluar(estacion_id, alumno_id):
                             pass
                         
         evaluacion.puntaje_total = puntaje_total
+        evaluacion.fecha_evaluacion = evaluacion.fecha_evaluacion or datetime.utcnow()
+        evaluacion.updated_at = datetime.utcnow()
+
+        pendientes = set(est.id for est in Estacion.query.all())
+        hechas = set(e.estacion_id for e in Evaluacion.query.filter_by(alumno_id=alumno.id, examen_id=examen_activo.id).all())
+        inscripcion = ExamenAlumno.query.filter_by(examen_id=examen_activo.id, alumno_id=alumno.id).first()
+        if inscripcion:
+            inscripcion.estado = 'completado' if pendientes.issubset(hechas) else 'evaluado_parcial'
         db.session.commit()
         return redirect(url_for('tablet.exito', estacion_id=estacion_id))
         
@@ -377,7 +475,10 @@ def evaluar(estacion_id, alumno_id):
 
 @tablet_bp.route('/<estacion_id>/reset/<alumno_id>', methods=['POST'])
 def reset_evaluacion(estacion_id, alumno_id):
-    evaluacion = Evaluacion.query.filter_by(estacion_id=estacion_id, alumno_id=alumno_id).first()
+    examen_activo = get_active_exam()
+    evaluacion = None
+    if examen_activo:
+        evaluacion = Evaluacion.query.filter_by(estacion_id=estacion_id, alumno_id=alumno_id, examen_id=examen_activo.id).first()
     if evaluacion:
         db.session.delete(evaluacion)
         db.session.commit()

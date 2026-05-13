@@ -3,18 +3,30 @@
 # No subir go2rtc.yaml real: puede contener credenciales, device_id o URLs Tuya sensibles.
 
 streams:
+  # Stream principal HD de la cámara RCP.
   camara1:
     # Opción RTSP local/genérica:
     # - rtsp://usuario:password@192.168.1.100:554/stream1
 
     # Opción Tuya/go2rtc cloud; completar fuera del repositorio:
-    # - tuya://ACCESS_ID:ACCESS_SECRET@REGION/DEVICE_ID?channel=0&subtype=0
+    # - tuya://protect-us.ismartlife.me?device_id=TU_DEVICE_ID&email=TU_EMAIL&password=TU_PASSWORD&resolution=hd
 
-    # Fallback de prueba local si se genera test_video.mp4:
-    - ffmpeg:test_video.mp4#video=h264
+    # Fallback demo: genera video de prueba si tienes FFmpeg disponible.
+    - ffmpeg:color=c=black:s=1280x720:r=15#video=h264
+
+  # Stream secundario SD real cuando la cámara/proveedor lo soporte.
+  camara1_sd:
+    # - tuya://protect-us.ismartlife.me?device_id=TU_DEVICE_ID&email=TU_EMAIL&password=TU_PASSWORD&resolution=sd
+    - ffmpeg:color=c=black:s=640x360:r=15#video=h264
 
 api:
   listen: ":1984"
 
 rtsp:
   listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+  # Si accedes desde tablets en la misma LAN, puedes agregar la IP local de la PC:
+  # candidates:
+  #   - 192.168.1.50:8555

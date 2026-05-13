@@ -1,115 +1,206 @@
 # TeleECOE
 
-Sistema web local para evaluación por estaciones, orientado a tablets y una PC maestra. Incluye administración de alumnos/estaciones/rúbricas, registro de evaluaciones, analítica básica y grabación de video para la estación RCP.
+TeleECOE es un sistema web local para evaluación clínica por estaciones tipo ECOE/OSCE. Está pensado para una **PC maestra** y tablets o laptops conectadas en la misma red.
 
-Nombre anterior del proyecto: `SistemaEvaluacion v2`.
+Incluye:
 
-Para entender todo el proyecto en lenguaje natural antes de pedir cambios, leer:
+- administración de alumnos;
+- creación/cierre de exámenes o convocatorias;
+- importación masiva de alumnos desde archivo compatible con Excel;
+- rúbricas por estación;
+- evaluación en tablets;
+- dashboard de calificaciones;
+- analítica básica;
+- estación RCP con video mediante go2rtc/FFmpeg cuando se configure cámara.
 
-`docs/TELEECOE_GUIA_COMPLETA.md`
+Nombre anterior: `SistemaEvaluacion v2`.
 
-## Estado actual
+---
 
-Versión en preparación para control de versiones.
+## Instalación rápida
 
-Trabajo reciente:
+### Windows
 
-- Estación 5/RCP adaptada a **una sola cámara** (`camara1`).
-- Visor de cámara vía go2rtc.
-- Grabación RCP mediante FFmpeg desde RTSP local de go2rtc.
-- Descarte inicial configurable del stream (`WARMUP_SECONDS`) para reducir artefactos iniciales.
-- Endpoints de control de grabación: start/status/stop.
-- Puntaje de categorías `seleccion_unica` corregido para sumar puntos.
+Abre PowerShell en la carpeta del proyecto:
 
-Pendiente funcional principal:
-
-- Repetir prueba integrada de grabación con warm-up y validar que el MP4 final tenga `moov`, pase `ffprobe`, decodifique sin warnings y tenga frames coherentes.
-
-## Stack
-
-- Python 3
-- Flask
-- Flask-SQLAlchemy
-- SQLite
-- Jinja2 / Bootstrap
-- go2rtc
-- FFmpeg
-
-## Instalación local
-
-```bash
-python3 -m venv .venv-linux
-source .venv-linux/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+```powershell
+.\install.ps1
+.\start.ps1
 ```
 
-Editar `.env` con valores locales. No subir `.env` al repositorio.
+Si Windows bloquea scripts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+También puedes usar doble clic o consola con:
+
+```bat
+install.bat
+start.bat
+```
+
+### Linux/macOS
+
+```bash
+chmod +x install.sh start.sh
+./install.sh
+./start.sh
+```
+
+Luego abre:
+
+```text
+http://localhost:5000
+```
+
+Para tablets en la misma red:
+
+```text
+http://IP_DE_LA_PC:5000/tablet
+```
+
+Guía completa: [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
+
+---
+
+## Requisitos
+
+- Python 3.10+
+- Navegador moderno
+- Opcional: go2rtc y FFmpeg para cámara/grabación RCP real
+
+---
+
+## Primer uso
+
+El instalador crea:
+
+- entorno virtual `.venv`;
+- `.env` desde `.env.example`;
+- `go2rtc.yaml` desde `go2rtc.example.yaml`;
+- `evaluaciones.db` local con datos demo.
+
+Puedes iniciar con:
+
+```bash
+./start.sh
+```
+
+o en Windows:
+
+```powershell
+.\start.ps1
+```
+
+---
+
+## Funciones principales
+
+### Exámenes / convocatorias
+
+- Crear examen nuevo.
+- Cerrar examen actual.
+- Activar exámenes históricos.
+- Eliminar exámenes no activos con confirmación.
+- Mantener resultados separados por convocatoria.
+
+### Alumnos
+
+- Agregar manualmente.
+- Importar masivamente desde CSV compatible con Excel.
+- Descargar plantilla desde el panel.
+- Retirar del examen activo sin borrar histórico.
+
+### Estaciones
+
+- Crear estaciones.
+- Configurar categorías y criterios.
+- Evaluar desde tablets.
+- Corregir evaluaciones ya guardadas.
+
+### RCP / video
+
+- Visor con botones **HD | SD | HLS | WebRTC | Auto | MSE | Reconectar**.
+- Grabación MP4 mediante go2rtc + FFmpeg si hay cámara configurada.
+- Corrección posterior mostrando video grabado y preguntas debajo.
+
+---
 
 ## Configuración de cámara
 
 El archivo real `go2rtc.yaml` no se versiona porque puede contener credenciales, `device_id`, URLs Tuya o datos de red privada.
 
-Crear una copia local desde el ejemplo:
+Crear localmente desde:
 
 ```bash
 cp go2rtc.example.yaml go2rtc.yaml
 ```
 
-Luego completar `go2rtc.yaml` con la fuente real de cámara.
+Streams esperados:
 
-## Ejecución
-
-Con el entorno virtual activo:
-
-```bash
-python run.py
+```text
+camara1     # HD/principal
+camara1_sd  # SD/liviano opcional
 ```
 
-Accesos habituales:
+---
 
-- PC maestra: `http://localhost:5000`
-- Tablets: `http://<IP_DE_LA_PC>:5000/tablet`
-- go2rtc: `http://localhost:1984`
-- RTSP local esperado: `rtsp://127.0.0.1:8554/camara1`
+## Archivos que no deben subirse a GitHub
 
-## Datos y archivos no versionados
+- `.env`
+- `go2rtc.yaml`
+- `evaluaciones.db`
+- grabaciones MP4
+- logs
+- backups
+- entornos virtuales
+- binarios descargados
 
-Por seguridad y tamaño, el repositorio excluye:
+Esto está cubierto por `.gitignore`, pero revisa antes de publicar.
 
-- `.env` y variantes locales.
-- `go2rtc.yaml` real.
-- `evaluaciones.db` y bases SQLite reales.
-- Grabaciones MP4 y logs.
-- Entornos virtuales.
-- Backups locales.
-- Binarios pesados como `go2rtc.exe` y herramientas descargadas.
+---
 
-## Flujo de cambios en lenguaje natural
+## Verificación antes de publicar
 
-Para no mezclar instrucciones técnicas fragmentadas en el chat, los cambios concretos del producto se escriben en Markdown dentro de `docs/`:
+Linux/macOS:
 
-- `docs/CAMBIOS_SOLICITADOS.md`: pedidos concretos editables por el usuario.
-- `docs/PRODUCT_SPEC.md`: especificación viva del producto.
-- `docs/DECISION_LOG.md`: decisiones importantes y razones.
-- `docs/IMPLEMENTATION_PLAN.md`: traducción técnica de pedidos a tareas verificables.
+```bash
+source .venv/bin/activate
+python scripts/check_release.py
+```
 
-Flujo recomendado:
+Windows:
 
-1. Editar `docs/CAMBIOS_SOLICITADOS.md`.
-2. Avisar en el chat administrativo: `ya edité CAMBIOS_SOLICITADOS.md`.
-3. Revisar el diff contra Git.
-4. Implementar, verificar y commitear cambios.
+```powershell
+.\.venv\Scripts\python.exe scripts\check_release.py
+```
 
-## Preparación para GitHub
+Debe mostrar:
 
-Este proyecto está preparado para Git local y futura publicación en GitHub, pero antes de hacer `push` se debe revisar:
+```text
+release_check_ok=true
+```
 
-1. Que no haya secretos en archivos versionados.
-2. Que `git status` solo muestre archivos esperados.
-3. Que `go2rtc.yaml`, `.env`, bases de datos y grabaciones estén ignorados.
-4. Que exista una prueba funcional mínima documentada.
+---
 
-## Advertencia de seguridad
+## Documentación útil
 
-La versión actual está pensada para red local/controlada. Antes de exponerla fuera de una red privada hay que añadir autenticación, CSRF, manejo seguro de sesiones, configuración de producción y revisión de rutas destructivas.
+- [`docs/INSTALLATION.md`](docs/INSTALLATION.md) — instalación Windows/Linux/macOS.
+- [`docs/TELEECOE_GUIA_COMPLETA.md`](docs/TELEECOE_GUIA_COMPLETA.md) — guía completa en lenguaje natural.
+- [`docs/EXAMENES_ALUMNOS_IMPORTACION_2026-05-12.md`](docs/EXAMENES_ALUMNOS_IMPORTACION_2026-05-12.md) — exámenes e importación.
+- [`docs/RCP_VIDEO_CONFIG_HD_SD_2026-05-12.md`](docs/RCP_VIDEO_CONFIG_HD_SD_2026-05-12.md) — configuración RCP/video.
+
+---
+
+## Licencia
+
+MIT. Ver [`LICENSE`](LICENSE).
+
+---
+
+## Seguridad
+
+TeleECOE está pensado inicialmente para red local/controlada. Antes de exponerlo a internet se requiere autenticación, CSRF, configuración de producción y revisión de permisos.

@@ -6,6 +6,9 @@
 </div>
 
 <div class="alert alert-warning text-center fs-5 shadow-sm">
+    {% if examen_activo %}
+    Examen activo: <strong>{{ examen_activo.nombre }}</strong><br>
+    {% endif %}
     Seleccione al alumno que tiene enfrente para iniciar o <strong>editar</strong> su evaluación.
 </div>
 

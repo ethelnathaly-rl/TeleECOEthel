@@ -7,9 +7,10 @@
     .container.mt-4 { margin-top: 0 !important; max-width: 100%; padding: 0; height: 100vh; display: flex; flex-direction: column; }
     .rcp-header { flex: 0 0 auto; padding: 10px 20px; background-color: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; z-index: 10; }
     .rcp-cams { flex: 0 0 45vh; display: flex; flex-direction: row; background: #000; }
+    .rcp-cams.has-recorded-video { flex-basis: 30vh; min-height: 210px; }
     
     .cam-wrapper { position: relative; flex: 1; height: 100%; border-right: none; }
-    .cam-wrapper iframe { width: 100%; height: 100%; border: none; }
+    .cam-wrapper iframe, .cam-wrapper video { width: 100%; height: 100%; border: none; }
     
     /* Overlay actions */
     .cam-actions { position: absolute; top: 10px; right: 10px; z-index: 20; opacity: 0.7; transition: opacity 0.3s; }
@@ -27,7 +28,8 @@
     .btn-reduce { display: none; }
     .cam-wrapper.is-fullscreen .btn-reduce { display: inline-block; }
 
-    .rcp-questions { flex: 1 1 auto; overflow-y: auto; padding: 20px; background-color: #f8f9fa; }
+    .rcp-questions { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px; background-color: #f8f9fa; }
+    .correction-banner { position: sticky; top: 0; z-index: 5; }
 </style>
 <div class="rcp-header shadow-sm">
     <h4 class="m-0 text-dark">Alumno: <strong>{{ alumno.nombre }}</strong> 
@@ -37,14 +39,14 @@
     </h4>
     <a href="{{ url_for('tablet.seleccionar_alumno', estacion_id=estacion.id) }}" class="btn btn-secondary shadow-sm">Cancelar</a>
 </div>
-<div class="rcp-cams shadow-lg">
+<div class="rcp-cams shadow-lg {% if video_c1 %}has-recorded-video{% endif %}">
     <div class="cam-wrapper" id="camWrap1">
         <div class="cam-actions">
             <button type="button" class="btn btn-dark btn-sm btn-expand shadow" onclick="toggleFullscreen('camWrap1')"><i class="bi bi-arrows-fullscreen"></i> Expandir</button>
             <button type="button" class="btn btn-danger btn-sm btn-reduce shadow" onclick="toggleFullscreen('camWrap1')"><i class="bi bi-fullscreen-exit"></i> Reducir</button>
         </div>
         {% if video_c1 %}
-        <video src="{{ url_for('static', filename=video_c1) }}" controls style="width:100%; height:100%; background:black;" preload="auto"></video>
+        <video src="{{ url_for('static', filename=video_c1) }}" controls style="width:100%; height:100%; background:black; object-fit:contain;" preload="auto"></video>
         {% else %}
         <iframe src="{{ url_for('tablet.camera_auto_reload') }}" allow="fullscreen; autoplay; camera; microphone"></iframe>
         {% endif %}
@@ -63,6 +65,11 @@
 {% endif %}
 
 <div class="rcp-questions" id="questionsContainer" {% if not video_c1 %}style="display:none;"{% endif %}>
+{% if video_c1 %}
+<div class="alert alert-warning correction-banner shadow-sm mb-4 fs-5">
+    <strong>Modo corrección RCP:</strong> arriba se muestra el video grabado como evidencia y aquí debajo están las preguntas para corregir la evaluación.
+</div>
+{% endif %}
 {% else %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Alumno: <strong>{{ alumno.nombre }}</strong> <span class="badge bg-secondary ms-2">Estación: {{ estacion.nombre }}</span></h3>
@@ -144,7 +151,9 @@
     {% endfor %}
 
     <div class="d-grid gap-2 mb-5">
-        <button type="submit" class="btn btn-primary btn-lg py-4 fs-2 shadow-lg">FINALIZAR Y GUARDAR EVALUACIÓN</button>
+        <button type="submit" class="btn btn-primary btn-lg py-4 fs-2 shadow-lg">
+            {% if valores_previos %}GUARDAR CORRECCIÓN DE EVALUACIÓN{% else %}FINALIZAR Y GUARDAR EVALUACIÓN{% endif %}
+        </button>
     </div>
 </form>
 
