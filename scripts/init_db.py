@@ -12,8 +12,10 @@ import argparse
 import os
 from pathlib import Path
 from datetime import datetime
+import sys
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_DIR))
 DB_PATH = PROJECT_DIR / "evaluaciones.db"
 
 

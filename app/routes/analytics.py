@@ -288,3 +288,33 @@ def export_csv():
         mimetype=XLSX_MIMETYPE,
         headers={"Content-Disposition": "attachment; filename=dashboard_analitico_teleecoe.xlsx"}
     )
+
+@analytics_bp.route('/api/comments')
+def api_comments():
+    examen_id = current_exam_filter()
+    grupo_filter = request.args.get('grupo', type=int)
+    estacion_filter = request.args.get('estacion_id')
+    
+    # Query evaluations that have comments and match filters
+    query = Evaluacion.query.filter(Evaluacion.comentarios.isnot(None)).filter(Evaluacion.comentarios != '')
+    if examen_id:
+        query = query.filter_by(examen_id=examen_id)
+    if estacion_filter:
+        query = query.filter_by(estacion_id=estacion_filter)
+    if grupo_filter is not None:
+        query = query.join(Alumno).filter(Alumno.grupo == grupo_filter)
+        
+    evaluaciones = query.order_by(Evaluacion.fecha_evaluacion.desc()).all()
+    
+    resultados = []
+    for e in evaluaciones:
+        resultados.append({
+            'alumno_nombre': e.alumno.nombre,
+            'alumno_grupo': e.alumno.grupo,
+            'estacion_nombre': e.estacion.nombre,
+            'puntaje_total': e.puntaje_total,
+            'comentarios': e.comentarios,
+            'fecha': e.fecha_evaluacion.strftime('%Y-%m-%d %H:%M') if e.fecha_evaluacion else '-'
+        })
+    return jsonify(resultados)
+

@@ -1,5 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+    #tabletTimerContainer {
+        position: fixed !important;
+        bottom: 25px !important;
+        right: 25px !important;
+        z-index: 9999 !important;
+        box-shadow: 0 6px 22px rgba(0,0,0,0.35) !important;
+        border: 2px solid #ffc107 !important;
+        font-size: 1.6rem !important;
+        background-color: rgba(33, 37, 41, 0.96) !important;
+        border-radius: 12px !important;
+        
+        /* Criterios rígidos de tamaño para evitar deformaciones */
+        width: 170px !important;
+        height: 62px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        
+        /* Prevenir zoom, selección o resaltados al arrastrar */
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        touch-action: none !important;
+    }
+</style>
 {% if camera_enabled %}
 <style>
     /* Full screen layout for Station 5 */
@@ -37,6 +66,9 @@
     <span class="badge bg-warning text-dark ms-2" id="recordingErrorBadge" style="display:none;"><i class="bi bi-exclamation-triangle-fill"></i> ERROR DE GRABACIÓN</span>
     <span class="badge bg-secondary ms-2" id="normalBadge"><i class="bi bi-camera-video"></i> {{ estacion.nombre }} (Monitoreo 1 cámara)</span>
     </h4>
+    <div id="tabletTimerContainer" class="d-flex align-items-center bg-dark text-warning border border-warning rounded px-3 py-1 shadow-sm font-monospace fs-5 fw-bold" style="letter-spacing: 1px;">
+        <i class="bi bi-stopwatch-fill text-danger me-2"></i><span id="tabletTimerDisplay">--:--</span>
+    </div>
     <a href="{{ url_for('tablet.seleccionar_alumno', estacion_id=estacion.id) }}" class="btn btn-secondary shadow-sm">Cancelar</a>
 </div>
 <div class="rcp-cams shadow-lg {% if video_c1 %}has-recorded-video{% endif %}">
@@ -73,6 +105,9 @@
 {% else %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Alumno: <strong>{{ alumno.nombre }}</strong> <span class="badge bg-secondary ms-2">Estación: {{ estacion.nombre }}</span></h3>
+    <div id="tabletTimerContainer" class="d-flex align-items-center bg-dark text-warning border border-warning rounded px-3 py-1 shadow-sm font-monospace fs-5 fw-bold" style="letter-spacing: 1px;">
+        <i class="bi bi-stopwatch-fill text-danger me-2"></i><span id="tabletTimerDisplay">--:--</span>
+    </div>
     <a href="{{ url_for('tablet.seleccionar_alumno', estacion_id=estacion.id) }}" class="btn btn-secondary">Cancelar</a>
 </div>
 {% endif %}
@@ -85,6 +120,7 @@
 {% endif %}
 
 <form method="POST">
+    <div id="ecoeRubricsContainer" {% if examen_activo and not examen_activo.tablet_show_ecoe %}style="display: none;"{% endif %}>
     {% for categoria in estacion.categorias %}
     <div class="card mb-4 shadow-sm border-dark">
         <div class="card-header bg-dark text-white fs-4">
@@ -149,6 +185,19 @@
         </div>
     </div>
     {% endfor %}
+    </div>
+    <!-- Etapa 2: Comentarios / Observaciones de la Evaluación -->
+    <div id="stage2CommentsContainer" class="card mb-4 shadow-sm border-secondary" {% if examen_activo and not examen_activo.tablet_show_stage2 %}style="display: none;"{% endif %}>
+        <div class="card-header bg-secondary text-white fs-4 d-flex align-items-center">
+            <span class="me-2">✍️</span> <strong>Etapa 2: Comentarios / Observaciones de la Evaluación</strong>
+        </div>
+        <div class="card-body bg-light">
+            <div class="mb-2">
+                <label for="comentarios" class="form-label fs-5 fw-semibold text-dark">Escribe aquí tus observaciones cualitativas sobre el desempeño del estudiante:</label>
+                <textarea class="form-control fs-5 shadow-sm" id="comentarios" name="comentarios" rows="4" placeholder="Ej. El estudiante demostró un manejo seguro del procedimiento, aunque se recomienda reforzar la comunicación interpersonal durante la estación...">{{ comentarios }}</textarea>
+            </div>
+        </div>
+    </div>
 
     <div class="d-grid gap-2 mb-5">
         <button type="submit" class="btn btn-primary btn-lg py-4 fs-2 shadow-lg">
@@ -214,5 +263,209 @@ async function startEvaluation() {
 }
 </script>
 {% endif %}
+
+<script>
+// Script para sincronizar el temporizador en tiempo real con la PC Maestra
+(function() {
+    let localInterval = null;
+    let serverEndTime = null;
+    let serverState = null;
+    let maxSeconds = 480;
+    
+    function updateTabletDisplay(sec) {
+        const mins = Math.floor(sec / 60);
+        const secs = sec % 60;
+        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        const display = document.getElementById('tabletTimerDisplay');
+        if (display) {
+            display.textContent = timeStr;
+            
+            // Visual feedback for low time
+            const alertThreshold = (maxSeconds === 3600) ? 300 : 30;
+            const container = document.getElementById('tabletTimerContainer');
+            if (container) {
+                if (sec > 0 && sec <= alertThreshold) {
+                    container.classList.remove('border-warning', 'text-warning', 'border-danger', 'text-danger');
+                    container.classList.add('border-danger', 'text-danger');
+                } else if (sec === 0) {
+                    container.classList.remove('border-warning', 'text-warning', 'border-danger', 'text-danger');
+                    container.classList.add('border-danger', 'text-danger');
+                } else {
+                    container.classList.remove('border-danger', 'text-danger');
+                    container.classList.add('border-warning', 'text-warning');
+                }
+            }
+        }
+    }
+    
+    function startLocalTick() {
+        if (localInterval) clearInterval(localInterval);
+        
+        localInterval = setInterval(() => {
+            if (serverState === 'running' && serverEndTime) {
+                const now = Date.now();
+                const diff = serverEndTime - now;
+                if (diff <= 0) {
+                    clearInterval(localInterval);
+                    updateTabletDisplay(0);
+                } else {
+                    const sec = Math.floor(diff / 1000);
+                    updateTabletDisplay(sec);
+                }
+            } else {
+                clearInterval(localInterval);
+            }
+        }, 1000);
+    }
+    
+    function pollTimerSync() {
+        fetch('/api/timer/sync')
+            .then(res => res.json())
+            .then(data => {
+                maxSeconds = data.max_seconds || 480;
+                serverState = data.state;
+                
+                if (data.state === 'running' && data.end_time) {
+                    const newEndTime = parseInt(data.end_time);
+                    if (serverEndTime !== newEndTime || !localInterval) {
+                        serverEndTime = newEndTime;
+                        startLocalTick();
+                    }
+                    const diff = serverEndTime - Date.now();
+                    updateTabletDisplay(Math.max(0, Math.floor(diff / 1000)));
+                } else if (data.state === 'paused') {
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(parseInt(data.remaining || 0));
+                } else if (data.state === 'finished') {
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(0);
+                } else { // stopped
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(maxSeconds);
+                }
+
+                // Sincronizar visibilidad de Rúbricas (ECOE) y Comentarios (Etapa 2) en tiempo real
+                const ecoeContainer = document.getElementById('ecoeRubricsContainer');
+                if (ecoeContainer) {
+                    const inputs = ecoeContainer.querySelectorAll('input[required], input[data-was-required="true"]');
+                    if (data.tablet_show_ecoe === false) {
+                        ecoeContainer.style.display = 'none';
+                        inputs.forEach(input => {
+                            input.removeAttribute('required');
+                            input.setAttribute('data-was-required', 'true');
+                        });
+                    } else {
+                        ecoeContainer.style.display = 'block';
+                        inputs.forEach(input => {
+                            input.setAttribute('required', 'required');
+                        });
+                    }
+                }
+                const stage2Container = document.getElementById('stage2CommentsContainer');
+                if (stage2Container) {
+                    stage2Container.style.display = (data.tablet_show_stage2 === false) ? 'none' : 'block';
+                }
+            })
+            .catch(err => console.error("Error polling timer sync:", err));
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        pollTimerSync();
+        setInterval(pollTimerSync, 2500);
+    });
+
+    // --- CÓDIGO DE ARRASTRE MULTI-TÁCTIL Y MOUSE PREMIUM ---
+    (function() {
+        const el = document.getElementById('tabletTimerContainer');
+        if (!el) return;
+        
+        let isDragging = false;
+        let startX, startY;
+        let initialLeft, initialTop;
+        
+        el.style.cursor = 'move';
+        el.style.userSelect = 'none';
+        el.style.touchAction = 'none'; // Evita scroll de la página en tablets durante el drag
+        
+        function onStart(e) {
+            isDragging = true;
+            
+            const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+            
+            startX = clientX;
+            startY = clientY;
+            
+            const rect = el.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            el.style.transition = 'none';
+            
+            if (e.type.startsWith('touch')) {
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            } else {
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+            }
+            
+            if (e.cancelable) e.preventDefault();
+        }
+        
+        function onMove(e) {
+            if (!isDragging) return;
+            
+            const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+            
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+            
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+            
+            const rect = el.getBoundingClientRect();
+            const maxX = window.innerWidth - rect.width;
+            const maxY = window.innerHeight - rect.height;
+            
+            newLeft = Math.max(0, Math.min(newLeft, maxX));
+            newTop = Math.max(0, Math.min(newTop, maxY));
+            
+            el.style.bottom = 'auto';
+            el.style.right = 'auto';
+            el.style.left = `${newLeft}px`;
+            el.style.top = `${newTop}px`;
+            
+            if (e.cancelable) e.preventDefault();
+        }
+        
+        function onEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            el.style.transition = 'none';
+            
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+        }
+        
+        el.addEventListener('mousedown', onStart);
+        el.addEventListener('touchstart', onStart, { passive: false });
+    })();
+})();
+</script>
 
 {% endblock %}

@@ -10,6 +10,12 @@ class Examen(db.Model):
     estado = db.Column(db.String(20), nullable=False, default='activo')  # activo, cerrado, archivado
     fecha_inicio = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     fecha_cierre = db.Column(db.DateTime, nullable=True)
+    tipo_evaluacion = db.Column(db.String(50), nullable=False, default='ecoe') # ecoe, stage2
+    timer_state = db.Column(db.String(20), nullable=False, default='stopped') # stopped, running, paused
+    timer_end_time = db.Column(db.String(50), nullable=True)
+    timer_remaining = db.Column(db.Integer, nullable=True, default=480)
+    tablet_show_ecoe = db.Column(db.Boolean, nullable=False, default=True)
+    tablet_show_stage2 = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     alumnos = db.relationship('ExamenAlumno', backref='examen', lazy=True, cascade='all, delete-orphan')
@@ -87,6 +93,7 @@ class Evaluacion(db.Model):
     video_camara2 = db.Column(db.String(255), nullable=True)
     fecha_evaluacion = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, nullable=True)
+    comentarios = db.Column(db.Text, nullable=True)
 
     detalles = db.relationship('EvaluacionDetalle', backref='evaluacion', lazy=True, cascade='all, delete-orphan')
 

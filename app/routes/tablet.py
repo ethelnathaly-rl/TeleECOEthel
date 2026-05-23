@@ -495,6 +495,7 @@ def evaluar(estacion_id, alumno_id):
         evaluacion.puntaje_total = puntaje_total
         evaluacion.fecha_evaluacion = evaluacion.fecha_evaluacion or datetime.utcnow()
         evaluacion.updated_at = datetime.utcnow()
+        evaluacion.comentarios = request.form.get('comentarios', '').strip() or None
 
         pendientes = set(est.id for est in Estacion.query.filter_by(activa=True).all())
         hechas = set(e.estacion_id for e in Evaluacion.query.filter_by(alumno_id=alumno.id, examen_id=examen_activo.id).all())
@@ -522,7 +523,9 @@ def evaluar(estacion_id, alumno_id):
         parse_opciones=parse_opciones,
         video_c1=video_c1,
         video_c2=video_c2,
-        camera_enabled=station_uses_camera(estacion)
+        camera_enabled=station_uses_camera(estacion),
+        comentarios=evaluacion.comentarios if evaluacion else "",
+        examen_activo=examen_activo
     )
 
 @tablet_bp.route('/<estacion_id>/reset/<alumno_id>', methods=['POST'])

@@ -120,6 +120,27 @@
                     </tbody>
                 </table>
             </div>
+    <!-- Comentarios y Observaciones (Etapa 2) -->
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body">
+            <h5 class="card-title fw-bold mb-3 text-secondary"><i class="bi bi-chat-left-text-fill me-2"></i>Observaciones y Comentarios de Estudiantes (Etapa 2)</h5>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Alumno</th>
+                            <th class="text-center">Grupo</th>
+                            <th>Estación</th>
+                            <th class="text-center">Puntaje</th>
+                            <th style="width: 50%">Observaciones / Comentarios</th>
+                            <th class="text-center">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-comments-body">
+                        <!-- Llenado por JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -163,6 +184,13 @@
             renderItemsTable(itemsData);
             renderTopItemsChart(itemsData);
         } catch (e) { console.error("Error cargando Ítems"); }
+
+        // 4. Cargar Comentarios de Estudiantes (Etapa 2)
+        try {
+            const commentsRes = await fetch(`/analytics/api/comments${queryParams}`);
+            const commentsData = await commentsRes.json();
+            renderCommentsTable(commentsData);
+        } catch (e) { console.error("Error cargando Comentarios"); }
     }
 
     function exportData() {
@@ -267,6 +295,30 @@
                     <td class="text-center">
                         ${isCritical ? '<span class="badge bg-danger">Crítico</span>' : '<span class="badge bg-success">Óptimo</span>'}
                     </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function renderCommentsTable(data) {
+        const tbody = document.getElementById('table-comments-body');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hay comentarios u observaciones registradas con los filtros seleccionados.</td></tr>';
+            return;
+        }
+
+        data.forEach(item => {
+            const row = `
+                <tr>
+                    <td class="fw-bold text-dark">${item.alumno_nombre}</td>
+                    <td class="text-center"><span class="badge bg-light text-dark border">${item.alumno_grupo}</span></td>
+                    <td><span class="badge bg-secondary">${item.estacion_nombre}</span></td>
+                    <td class="text-center fw-bold text-primary">${item.puntaje_total.toFixed(1)}</td>
+                    <td class="fst-italic text-muted font-monospace" style="white-space: pre-wrap;">"${item.comentarios}"</td>
+                    <td class="text-center small text-muted">${item.fecha}</td>
                 </tr>
             `;
             tbody.innerHTML += row;

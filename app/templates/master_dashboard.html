@@ -16,16 +16,86 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-primary mb-3">
-    <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-            <div class="text-muted small">Examen / convocatoria activa</div>
-            <h4 class="mb-0">{{ examen_activo.nombre if examen_activo else 'Sin examen activo' }}</h4>
-            {% if examen_activo %}
-            <small class="text-muted">Inicio: {{ examen_activo.fecha_inicio.strftime('%Y-%m-%d %H:%M') if examen_activo.fecha_inicio else '-' }} · Estado: {{ examen_activo.estado }}</small>
-            {% endif %}
+<div class="row mb-3">
+    <!-- Card del Examen Activo -->
+    <div class="col-md-6 mb-3 mb-md-0">
+        <div class="card shadow-sm border-primary h-100">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <div class="text-muted small">Examen / convocatoria activa</div>
+                    <h4 class="mb-1 fw-bold">{{ examen_activo.nombre if examen_activo else 'Sin examen activo' }}</h4>
+                    {% if examen_activo %}
+                    <div class="mb-2">
+                        <span class="badge bg-info text-dark fs-6">
+                            {% if examen_activo.tipo_evaluacion == 'stage2' %}Stage 2 (1 hora){% else %}ECOE (8 min por estación){% endif %}
+                        </span>
+                    </div>
+                    <small class="text-muted d-block mb-3">Inicio: {{ examen_activo.fecha_inicio.strftime('%Y-%m-%d %H:%M') if examen_activo.fecha_inicio else '-' }} · Estado: {{ examen_activo.estado }}</small>
+                    
+                    <!-- CONTROLES DE VISIBILIDAD EN TABLETS -->
+                    <div class="p-3 bg-light border rounded shadow-sm">
+                        <div class="fw-bold text-dark mb-2 small"><i class="bi bi-tablet"></i> Visibilidad en las Tablets:</div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-secondary fw-semibold">Mostrar Rúbricas (ECOE)</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="switchShowEcoe" {% if examen_activo.tablet_show_ecoe %}checked{% endif %} onchange="toggleTabletVisibility('ecoe', this.checked)">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-secondary fw-semibold">Mostrar Observaciones (Etapa 2)</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="switchShowStage2" {% if examen_activo.tablet_show_stage2 %}checked{% endif %} onchange="toggleTabletVisibility('stage2', this.checked)">
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('master.examenes_admin') }}" class="btn btn-outline-primary fs-5 w-100">🗂️ Gestionar Exámenes</a>
+                </div>
+            </div>
         </div>
-        <a href="{{ url_for('master.examenes_admin') }}" class="btn btn-outline-primary fs-5">🗂️ Gestionar Exámenes</a>
+    </div>
+    
+    <!-- Card del Temporizador en Tiempo Real -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-dark h-100 bg-dark text-white">
+            <div class="card-body d-flex flex-column justify-content-between p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-light small"><i class="bi bi-stopwatch-fill"></i> Temporizador en Tiempo Real</div>
+                    <span id="timerBadge" class="badge bg-secondary">
+                        {% if examen_activo %}{% if examen_activo.tipo_evaluacion == 'stage2' %}Stage 2{% else %}ECOE{% endif %}{% else %}ECOE{% endif %}
+                    </span>
+                </div>
+                <div class="text-center my-2">
+                    <span id="countdownDisplay" class="display-3 fw-bold text-warning font-monospace" style="letter-spacing: 2px;">08:00</span>
+                    
+                    <!-- BLOQUE DE EDICIÓN INLINE (OCULTO POR DEFECTO) -->
+                    <div id="timerEditBlock" class="d-none justify-content-center align-items-center gap-2 my-2">
+                        <input id="inputEditMins" type="number" min="0" max="999" class="form-control form-control-lg text-center bg-dark text-warning border-warning font-monospace fw-bold fs-2" style="width: 90px;">
+                        <span class="text-warning fw-bold fs-2">:</span>
+                        <input id="inputEditSecs" type="number" min="0" max="59" class="form-control form-control-lg text-center bg-dark text-warning border-warning font-monospace fw-bold fs-2" style="width: 90px;">
+                    </div>
+                    
+                    <div>
+                        <button id="btnEditTimer" class="btn btn-sm btn-outline-warning mt-1 d-none" onclick="enableTimerEdit()"><i class="bi bi-pencil-fill"></i> Editar Tiempo</button>
+                    </div>
+                </div>
+                
+                <!-- BOTONES DE CONTROL ESTÁNDAR -->
+                <div id="timerControlsBlock" class="d-flex justify-content-center gap-2">
+                    <button id="btnStartTimer" class="btn btn-success fs-5 px-3" onclick="startTimer()"><i class="bi bi-play-fill"></i> Iniciar</button>
+                    <button id="btnPauseTimer" class="btn btn-warning fs-5 px-3 text-dark" onclick="pauseTimer()" disabled><i class="bi bi-pause-fill"></i> Pausar</button>
+                    <button id="btnResetTimer" class="btn btn-danger fs-5 px-3" onclick="resetTimer()"><i class="bi bi-arrow-counterclockwise"></i> Reiniciar</button>
+                </div>
+                
+                <!-- BOTONES DE GUARDAR EDICIÓN (OCULTOS POR DEFECTO) -->
+                <div id="timerEditControlsBlock" class="d-none justify-content-center gap-2">
+                    <button class="btn btn-success fs-5 px-3" onclick="saveEditedTimer()"><i class="bi bi-check-lg"></i> Guardar</button>
+                    <button class="btn btn-secondary fs-5 px-3" onclick="cancelEditTimer()"><i class="bi bi-x-lg"></i> Cancelar</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -105,4 +175,327 @@
         </table>
     </div>
 </div>
+
+<script>
+    // Configurar duración máxima en segundos según el tipo de examen activo
+    const examenTipo = "{{ examen_activo.tipo_evaluacion if (examen_activo and examen_activo.tipo_evaluacion) else 'ecoe' }}";
+    let maxSeconds = (examenTipo === 'stage2') ? 3600 : 480; // 3600s = 60 minutos, 480s = 8 minutos
+    
+    let timerInterval = null;
+    let remainingSeconds = maxSeconds;
+
+    function syncTimerToServer(state, endTime, remaining) {
+        fetch('/api/timer/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                state: state,
+                end_time: endTime,
+                remaining: remaining
+            })
+        }).catch(err => console.error("Error syncing timer to server:", err));
+    }
+
+    function toggleTabletVisibility(field, value) {
+        fetch('/api/examen/toggle-visibility', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                field: field,
+                value: value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Sincronizar switches en el panel maestro
+                const switchEcoe = document.getElementById('switchShowEcoe');
+                const switchStage2 = document.getElementById('switchShowStage2');
+                if (switchEcoe) switchEcoe.checked = data.tablet_show_ecoe;
+                if (switchStage2) switchStage2.checked = data.tablet_show_stage2;
+                
+                // Actualizar tipo de examen y tiempos máximos locales
+                const isStage2 = (data.tipo_evaluacion === 'stage2');
+                maxSeconds = isStage2 ? 3600 : 480;
+                remainingSeconds = maxSeconds;
+                
+                // Actualizar badge superior del temporizador
+                const timerBadge = document.getElementById('timerBadge');
+                if (timerBadge) {
+                    timerBadge.textContent = isStage2 ? 'Stage 2' : 'ECOE';
+                }
+                
+                // Detener temporizador si estuviese corriendo
+                if (timerInterval) clearInterval(timerInterval);
+                localStorage.removeItem('timer_end_time');
+                localStorage.setItem('timer_state', 'stopped');
+                localStorage.setItem('timer_remaining', maxSeconds.toString());
+                
+                // Resetear UI del temporizador
+                updateDisplay();
+                setButtonsState(false, false, true);
+                
+                // También actualizar el badge del tipo de examen en la tarjeta de la izquierda
+                const tipoExamenBadge = document.querySelector('.badge.bg-info');
+                if (tipoExamenBadge) {
+                    tipoExamenBadge.textContent = isStage2 ? 'Stage 2 (1 hora)' : 'ECOE (8 min por estación)';
+                }
+                
+                // Sincronizar al servidor que el timer está parado en este nuevo tiempo máximo
+                syncTimerToServer('stopped', null, maxSeconds);
+            } else {
+                console.error("Error setting tablet visibility");
+            }
+        })
+        .catch(err => console.error("Error toggling tablet visibility:", err));
+    }
+    
+    function initTimer() {
+        fetch('/api/timer/sync')
+            .then(res => res.json())
+            .then(data => {
+                if (data.state === 'running' && data.end_time) {
+                    const end = parseInt(data.end_time);
+                    const now = Date.now();
+                    if (end > now) {
+                        remainingSeconds = Math.floor((end - now) / 1000);
+                        startInterval(end, false);
+                    } else {
+                        remainingSeconds = 0;
+                        updateDisplay();
+                        handleTimerFinished(false);
+                    }
+                } else if (data.state === 'paused' && data.remaining !== null) {
+                    remainingSeconds = parseInt(data.remaining);
+                    updateDisplay();
+                    setButtonsState(false, true, false);
+                } else {
+                    remainingSeconds = maxSeconds;
+                    updateDisplay();
+                    setButtonsState(false, false, true);
+                }
+            })
+            .catch(err => {
+                console.warn("Could not sync with server, using localStorage fallback:", err);
+                const savedEndTime = localStorage.getItem('timer_end_time');
+                const savedState = localStorage.getItem('timer_state');
+                const savedRemaining = localStorage.getItem('timer_remaining');
+                
+                if (savedState === 'running' && savedEndTime) {
+                    const end = parseInt(savedEndTime);
+                    const now = Date.now();
+                    if (end > now) {
+                        remainingSeconds = Math.floor((end - now) / 1000);
+                        startInterval(end, true);
+                    } else {
+                        remainingSeconds = 0;
+                        updateDisplay();
+                        handleTimerFinished(true);
+                    }
+                } else if (savedState === 'paused' && savedRemaining) {
+                    remainingSeconds = parseInt(savedRemaining);
+                    updateDisplay();
+                    setButtonsState(false, true, false);
+                } else {
+                    remainingSeconds = maxSeconds;
+                    updateDisplay();
+                    setButtonsState(false, false, true);
+                }
+            });
+    }
+    
+    function startInterval(endTime, shouldSync = true) {
+        localStorage.setItem('timer_end_time', endTime.toString());
+        localStorage.setItem('timer_state', 'running');
+        setButtonsState(true, false, false);
+
+        if (shouldSync) {
+            syncTimerToServer('running', endTime, remainingSeconds);
+        }
+        
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+            const now = Date.now();
+            const diff = endTime - now;
+            if (diff <= 0) {
+                clearInterval(timerInterval);
+                remainingSeconds = 0;
+                updateDisplay();
+                handleTimerFinished(true);
+            } else {
+                remainingSeconds = Math.floor(diff / 1000);
+                updateDisplay();
+            }
+        }, 1000);
+    }
+    
+    function startTimer() {
+        const endTime = Date.now() + remainingSeconds * 1000;
+        startInterval(endTime, true);
+    }
+    
+    function pauseTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        localStorage.setItem('timer_state', 'paused');
+        localStorage.setItem('timer_remaining', remainingSeconds.toString());
+        setButtonsState(false, true, false);
+        syncTimerToServer('paused', null, remainingSeconds);
+    }
+    
+    function resetTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        localStorage.removeItem('timer_end_time');
+        localStorage.removeItem('timer_state');
+        localStorage.removeItem('timer_remaining');
+        remainingSeconds = maxSeconds;
+        updateDisplay();
+        setButtonsState(false, false, true);
+        syncTimerToServer('stopped', null, maxSeconds);
+        
+        // Detener sonidos o alarmas visuales si estuviesen activos
+        const display = document.getElementById('countdownDisplay');
+        display.classList.remove('text-danger', 'text-warning');
+        display.classList.add('text-warning');
+        display.style.animation = 'none';
+    }
+    
+    function updateDisplay() {
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        const display = document.getElementById('countdownDisplay');
+        display.textContent = timeStr;
+        
+        // Alerta visual de los últimos 30 segundos (ECOE) o 5 minutos (Stage 2)
+        const alertThreshold = (maxSeconds === 3600) ? 300 : 30;
+        if (remainingSeconds > 0 && remainingSeconds <= alertThreshold) {
+            display.classList.remove('text-warning', 'text-danger');
+            display.classList.add('text-danger');
+            display.style.animation = 'blink 1s infinite';
+        } else if (remainingSeconds === 0) {
+            display.classList.remove('text-warning');
+            display.classList.add('text-danger');
+            display.style.animation = 'blink 0.5s infinite';
+        } else {
+            display.classList.remove('text-danger');
+            display.classList.add('text-warning');
+            display.style.animation = 'none';
+        }
+    }
+    
+    function setButtonsState(isRunning, isPaused, isReset) {
+        document.getElementById('btnStartTimer').disabled = isRunning;
+        document.getElementById('btnPauseTimer').disabled = !isRunning;
+        document.getElementById('btnResetTimer').disabled = isReset;
+
+        const btnEdit = document.getElementById('btnEditTimer');
+        if (btnEdit) {
+            if (isPaused && !isRunning && !isReset) {
+                btnEdit.classList.remove('d-none');
+            } else {
+                btnEdit.classList.add('d-none');
+            }
+        }
+    }
+
+    function enableTimerEdit() {
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        
+        document.getElementById('inputEditMins').value = mins;
+        document.getElementById('inputEditSecs').value = secs;
+        
+        document.getElementById('countdownDisplay').classList.add('d-none');
+        document.getElementById('btnEditTimer').classList.add('d-none');
+        document.getElementById('timerEditBlock').classList.remove('d-none');
+        document.getElementById('timerEditBlock').classList.add('d-flex');
+        
+        document.getElementById('timerControlsBlock').classList.remove('d-flex');
+        document.getElementById('timerControlsBlock').classList.add('d-none');
+        document.getElementById('timerEditControlsBlock').classList.remove('d-none');
+        document.getElementById('timerEditControlsBlock').classList.add('d-flex');
+    }
+    
+    function cancelEditTimer() {
+        document.getElementById('countdownDisplay').classList.remove('d-none');
+        document.getElementById('btnEditTimer').classList.remove('d-none');
+        document.getElementById('timerEditBlock').classList.add('d-none');
+        document.getElementById('timerEditBlock').classList.remove('d-flex');
+        
+        document.getElementById('timerControlsBlock').classList.add('d-flex');
+        document.getElementById('timerControlsBlock').classList.remove('d-none');
+        document.getElementById('timerEditControlsBlock').classList.add('d-none');
+        document.getElementById('timerEditControlsBlock').classList.remove('d-flex');
+    }
+    
+    function saveEditedTimer() {
+        let mins = parseInt(document.getElementById('inputEditMins').value);
+        let secs = parseInt(document.getElementById('inputEditSecs').value);
+        
+        if (isNaN(mins) || mins < 0) mins = 0;
+        if (isNaN(secs) || secs < 0 || secs > 59) secs = 0;
+        
+        remainingSeconds = mins * 60 + secs;
+        
+        localStorage.setItem('timer_remaining', remainingSeconds.toString());
+        syncTimerToServer('paused', null, remainingSeconds);
+        updateDisplay();
+        cancelEditTimer();
+    }
+    
+    function handleTimerFinished(shouldSync = true) {
+        localStorage.setItem('timer_state', 'finished');
+        setButtonsState(false, false, false);
+        if (shouldSync) {
+            syncTimerToServer('finished', null, 0);
+        }
+        
+        // Intentar sonar timbre/campana de aviso premium (Web Audio Chime Bell)
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            const fundamental = 880; // Nota A5 para campana cristalina
+            const ratios = [1, 1.2, 1.5, 2, 2.5, 3];
+            const now = ctx.currentTime;
+            
+            ratios.forEach((ratio, index) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = index % 2 === 0 ? 'sine' : 'triangle';
+                osc.frequency.setValueAtTime(fundamental * ratio, now);
+                
+                // Envolvente de campana: ataque rápido (0.02s) y desvanecimiento lento (decay)
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3 / ratios.length, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.0 / ratio);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(now);
+                osc.stop(now + 2.5);
+            });
+        } catch(e) {
+            console.log("AudioContext no disponible o bloqueado por el navegador.");
+        }
+        
+        alert("🚨 ¡TIEMPO TERMINADO! La sesión de evaluación ha finalizado.");
+    }
+    
+    // Iniciar temporizador al cargar la página
+    document.addEventListener('DOMContentLoaded', initTimer);
+</script>
+<style>
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+</style>
 {% endblock %}

@@ -1,7 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for, Response
 from app.models.models import Examen, ExamenAlumno, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
 from extensions import db
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import os
 import socket
 import struct
@@ -38,6 +41,8 @@ def enroll_student(examen, alumno, observaciones=None):
     return item
 
 def get_interface_ip(interface_name):
+    if fcntl is None:
+        return None
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             request_data = struct.pack('256s', interface_name[:15].encode('utf-8'))
@@ -183,7 +188,15 @@ def examenes_admin():
                 actual.estado = 'cerrado'
                 actual.fecha_cierre = actual.fecha_cierre or datetime.utcnow()
 
-            nuevo = Examen(nombre=nombre, descripcion=descripcion, estado='activo')
+            tipo_evaluacion = request.form.get('tipo_evaluacion', 'ecoe')
+            timer_remaining = 3600 if tipo_evaluacion == 'stage2' else 480
+            nuevo = Examen(
+                nombre=nombre, 
+                descripcion=descripcion, 
+                estado='activo', 
+                tipo_evaluacion=tipo_evaluacion,
+                timer_remaining=timer_remaining
+            )
             db.session.add(nuevo)
             db.session.flush()
 
@@ -637,7 +650,11 @@ def exportar_csv():
 
     encabezados = ['ID', 'Alumno', 'Grupo']
     for est in estaciones:
-        encabezados.extend([f'E{est.orden} {est.nombre} - Evaluado', f'E{est.orden} {est.nombre} - Puntaje'])
+        encabezados.extend([
+            f'E{est.orden} {est.nombre} - Evaluado', 
+            f'E{est.orden} {est.nombre} - Puntaje',
+            f'E{est.orden} {est.nombre} - Comentarios'
+        ])
     ws.append(encabezados)
 
     for alumno in alumnos:
@@ -649,7 +666,11 @@ def exportar_csv():
         fila = [alumno.id, alumno.nombre, alumno.grupo]
         for est in estaciones:
             evaluacion = evaluaciones.get(est.id)
-            fila.extend(['Si' if evaluacion else 'No', round(evaluacion.puntaje_total, 1) if evaluacion else 0.0])
+            fila.extend([
+                'Si' if evaluacion else 'No', 
+                round(evaluacion.puntaje_total, 1) if evaluacion else 0.0,
+                evaluacion.comentarios if (evaluacion and evaluacion.comentarios) else ''
+            ])
         ws.append(fila)
 
     style_export_sheet(ws)
@@ -670,3 +691,116 @@ def exportar_csv():
         mimetype=XLSX_MIMETYPE,
         headers={'Content-Disposition': 'attachment; filename=panel_control_calificaciones.xlsx'}
     )
+
+@master_bp.route('/api/timer/sync', methods=['GET', 'POST'])
+def sync_timer():
+    import time
+    examen_activo = get_active_exam()
+    if not examen_activo:
+        return {'error': 'No active exam'}, 404
+        
+    if request.method == 'POST':
+        data = request.json or {}
+        timer_state = data.get('state')
+        timer_end_time = data.get('end_time')
+        timer_remaining = data.get('remaining')
+        
+        if timer_state is not None:
+            examen_activo.timer_state = timer_state
+        if timer_end_time is not None:
+            examen_activo.timer_end_time = str(timer_end_time)
+        if timer_remaining is not None:
+            examen_activo.timer_remaining = int(timer_remaining)
+            
+        db.session.commit()
+        return {'status': 'success'}
+        
+    # GET
+    remaining = examen_activo.timer_remaining
+    state = examen_activo.timer_state
+    
+    if state == 'running' and examen_activo.timer_end_time:
+        try:
+            end_time_ms = int(float(examen_activo.timer_end_time))
+            now_ms = int(time.time() * 1000)
+            diff_sec = int((end_time_ms - now_ms) / 1000)
+            if diff_sec <= 0:
+                remaining = 0
+                state = 'finished'
+                examen_activo.timer_state = 'finished'
+                examen_activo.timer_remaining = 0
+                db.session.commit()
+            else:
+                remaining = diff_sec
+        except Exception as e:
+            print(f"Error parsing end time: {e}")
+            
+    max_seconds = 3600 if examen_activo.tipo_evaluacion == 'stage2' else 480
+    return {
+        'state': state,
+        'end_time': examen_activo.timer_end_time,
+        'remaining': remaining,
+        'max_seconds': max_seconds,
+        'tipo_evaluacion': examen_activo.tipo_evaluacion,
+        'tablet_show_ecoe': examen_activo.tablet_show_ecoe,
+        'tablet_show_stage2': examen_activo.tablet_show_stage2
+    }
+
+@master_bp.route('/api/examen/toggle-visibility', methods=['POST'])
+def toggle_visibility():
+    examen_activo = get_active_exam()
+    if not examen_activo:
+        return {'error': 'No active exam'}, 404
+        
+    data = request.json or {}
+    field = data.get('field')
+    value = bool(data.get('value'))
+    
+    if field == 'ecoe':
+        if value:
+            examen_activo.tablet_show_ecoe = True
+            examen_activo.tablet_show_stage2 = False
+            examen_activo.tipo_evaluacion = 'ecoe'
+            # Reset timer to ECOE default (480s = 8 min)
+            examen_activo.timer_state = 'stopped'
+            examen_activo.timer_end_time = None
+            examen_activo.timer_remaining = 480
+        else:
+            # If ECOE is deactivated, we activate Stage 2 automatically
+            examen_activo.tablet_show_ecoe = False
+            examen_activo.tablet_show_stage2 = True
+            examen_activo.tipo_evaluacion = 'stage2'
+            # Reset timer to Stage 2 default (3600s = 60 min)
+            examen_activo.timer_state = 'stopped'
+            examen_activo.timer_end_time = None
+            examen_activo.timer_remaining = 3600
+    elif field == 'stage2':
+        if value:
+            examen_activo.tablet_show_ecoe = False
+            examen_activo.tablet_show_stage2 = True
+            examen_activo.tipo_evaluacion = 'stage2'
+            # Reset timer to Stage 2 default (3600s = 60 min)
+            examen_activo.timer_state = 'stopped'
+            examen_activo.timer_end_time = None
+            examen_activo.timer_remaining = 3600
+        else:
+            # If Stage 2 is deactivated, we activate ECOE automatically
+            examen_activo.tablet_show_ecoe = True
+            examen_activo.tablet_show_stage2 = False
+            examen_activo.tipo_evaluacion = 'ecoe'
+            # Reset timer to ECOE default (480s = 8 min)
+            examen_activo.timer_state = 'stopped'
+            examen_activo.timer_end_time = None
+            examen_activo.timer_remaining = 480
+    else:
+        return {'error': 'Invalid field'}, 400
+        
+    db.session.commit()
+    
+    return {
+        'status': 'success',
+        'tablet_show_ecoe': examen_activo.tablet_show_ecoe,
+        'tablet_show_stage2': examen_activo.tablet_show_stage2,
+        'tipo_evaluacion': examen_activo.tipo_evaluacion,
+        'timer_remaining': examen_activo.timer_remaining
+    }

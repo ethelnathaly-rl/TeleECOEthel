@@ -23,6 +23,13 @@
                         <label class="form-label">Descripción / notas</label>
                         <textarea class="form-control" name="descripcion" rows="3" placeholder="Opcional"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de evaluación *</label>
+                        <select class="form-select" name="tipo_evaluacion" required>
+                            <option value="ecoe" selected>ECOE / OSCE (8 minutos por estación)</option>
+                            <option value="stage2">Stage 2 (1 hora cronológica)</option>
+                        </select>
+                    </div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" value="1" id="copiarAlumnos" name="copiar_alumnos">
                         <label class="form-check-label" for="copiarAlumnos">Copiar alumnos del examen activo actual</label>
@@ -74,6 +81,9 @@
                             <td>{{ examen.id }}</td>
                             <td>
                                 <strong>{{ examen.nombre }}</strong>
+                                <span class="badge bg-info text-dark ms-1">
+                                    {% if examen.tipo_evaluacion == 'stage2' %}Stage 2{% else %}ECOE{% endif %}
+                                </span>
                                 {% if examen.descripcion %}<br><small class="text-muted">{{ examen.descripcion }}</small>{% endif %}
                             </td>
                             <td><span class="badge bg-{% if examen.estado == 'activo' %}success{% elif examen.estado == 'cerrado' %}secondary{% else %}dark{% endif %}">{{ examen.estado }}</span></td>

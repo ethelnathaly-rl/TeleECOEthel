@@ -1,10 +1,15 @@
 from app import create_app
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import os
 import socket
 import struct
 
 def get_interface_ip(interface_name):
+    if fcntl is None:
+        return None
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             request_data = struct.pack('256s', interface_name[:15].encode('utf-8'))
