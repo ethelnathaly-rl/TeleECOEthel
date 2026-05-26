@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1] - 2026-05-26
+
+### Agregado
+
+- Funcionalidad interactiva de ampliación (zoom/lightbox) en las imágenes clínicas en el **Modo Evaluado** (`/evaluado/`).
+- Efecto hover premium de aumento (`scale` y `shadow`) en todas las imágenes dentro del acordeón clínico.
+- Cursor dinámico de lupa (`zoom-in`) y modal Bootstrap (`imageZoomModal`) adaptativo y responsive que despliega imágenes como la radiografía o recetas en alta resolución al hacer clic.
+
 ## [1.3.0] - 2026-05-26
 
 ### Agregado
