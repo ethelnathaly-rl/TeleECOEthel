@@ -227,7 +227,24 @@
 
                     <td
                         class="text-center fw-bold {% if evaluacion.estado %}text-success{% else %}text-muted{% endif %}">
-                        {% if evaluacion.estado %}✔{% else %}-{% endif %}
+                        {% if evaluacion.estado %}
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>✔</span>
+                                {% if evaluacion.comentarios %}
+                                    <span class="text-primary" 
+                                          style="cursor: pointer;"
+                                          data-bs-toggle="popover" 
+                                          data-bs-trigger="hover focus" 
+                                          data-bs-html="true"
+                                          title="<div class='fw-bold text-primary'><i class='bi bi-chat-quote-fill'></i> Obs. E{{ est.orden }}</div>" 
+                                          data-bs-content="<div class='small text-dark' style='min-width: 220px; white-space: pre-wrap;'>{{ evaluacion.comentarios }}</div>">
+                                        <i class="bi bi-chat-left-text-fill fs-5"></i>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            -
+                        {% endif %}
                     </td>
                     <td class="text-center fw-bold">
                         {% if evaluacion.estado %}{{ "%.1f"|format(evaluacion.puntaje) }}{% else %}0.0{% endif %}
@@ -591,8 +608,14 @@
         alert("🚨 ¡TIEMPO TERMINADO! La sesión de evaluación ha finalizado.");
     }
     
-    // Iniciar temporizador al cargar la página
-    document.addEventListener('DOMContentLoaded', initTimer);
+    // Iniciar temporizador e inicializar popovers al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        initTimer();
+        
+        // Inicializar popovers de Bootstrap 5
+        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+        const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+    });
 </script>
 <style>
     @keyframes blink {

@@ -103,3 +103,18 @@ class EvaluacionDetalle(db.Model):
     evaluacion_id = db.Column(db.Integer, db.ForeignKey('evaluacion.id'), nullable=False)
     criterio_id = db.Column(db.String(50), db.ForeignKey('criterio.id'), nullable=False)
     valor_registrado = db.Column(db.String(50), nullable=False)
+
+class EstacionContenidoEvaluado(db.Model):
+    __tablename__ = 'estacion_contenido_evaluado'
+    id = db.Column(db.Integer, primary_key=True)
+    estacion_id = db.Column(db.String(50), db.ForeignKey('estacion.id'), nullable=False)
+    etapa = db.Column(db.String(20), nullable=False) # 'etapa2', 'ecoe'
+    seccion = db.Column(db.String(50), nullable=False) # 'caso_clinico', 'examen_physico', etc.
+    titulo = db.Column(db.String(200), nullable=True)
+    contenido = db.Column(db.Text, nullable=True)
+    orden = db.Column(db.Integer, default=1)
+    visible = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    estacion = db.relationship('Estacion', backref=db.backref('contenidos_evaluado', lazy=True, cascade='all, delete-orphan'))

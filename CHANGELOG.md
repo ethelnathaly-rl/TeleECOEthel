@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0] - 2026-05-26
+
+### Agregado
+
+- Carga de datos clínicos reales y recursos de simulación premium para el **Modo Evaluado** (`/evaluado/`) y **Modo Evaluador** (`/tablet/`).
+- Generación e integración de recursos médicos hiperrealistas en `app/static/ejemplos/`:
+  - `rx_torax.png`: Radiografía de tórax con consolidación basal derecha.
+  - `analisis_sangre.png`: Reporte analítico completo de hemograma y reactantes.
+  - `receta_medica.png`: Modelo de receta formal con Amoxicilina/Ácido Clavulánico y Paracetamol.
+- Grupo 3 de alumnos de prueba (`Dra. Camila Ortega Reyes`, `Dr. Mateo San Martín Flores`, etc.) vinculados al examen activo.
+- Evaluaciones precargadas con comentarios de retroalimentación cualitativa detallada en español para demostrar el funcionamiento de los Popovers flotantes en el panel maestro de PC.
+- Habilitación de HTML seguro (`|safe` filter) en el acordeón clínico del Modo Evaluado, permitiendo incorporar imágenes interactivas, listas y tablas.
+
 ## [1.2.0] - 2026-05-26
 
 ### Agregado

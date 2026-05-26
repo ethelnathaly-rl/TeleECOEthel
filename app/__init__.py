@@ -27,9 +27,11 @@ def create_app():
     from app.routes.analytics import analytics_bp
     from app.routes.master import master_bp
     from app.routes.tablet import tablet_bp
+    from app.routes.evaluado import evaluado_bp
     
     app.register_blueprint(master_bp)
     app.register_blueprint(tablet_bp, url_prefix='/tablet')
     app.register_blueprint(analytics_bp, url_prefix='/analytics')
+    app.register_blueprint(evaluado_bp, url_prefix='/evaluado')
 
     return app

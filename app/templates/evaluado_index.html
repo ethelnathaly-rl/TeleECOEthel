@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-lg-8 col-xl-7 text-center">
+        <!-- Header Principal Premium -->
+        <div class="mb-5">
+            <div class="display-3 mb-2">🎓</div>
+            <h1 class="display-4 fw-extrabold text-dark tracking-tight">Portal del Evaluado</h1>
+            <p class="fs-4 text-secondary">Bienvenido al sistema de visualización de contenido clínico para participantes de TeleECOE.</p>
+        </div>
+
+        {% include "includes/alerts.html" ignore missing %}
+
+        <!-- Estado del Examen Activo -->
+        <div class="card shadow-sm border-0 rounded-4 bg-white p-4 mb-5 text-center">
+            <div class="text-muted small uppercase-tracking mb-1 fw-bold">CONVOCATORIA ACTUALMENTE ACTIVA</div>
+            {% if examen_activo %}
+            <h2 class="fw-bold text-primary mb-1">{{ examen_activo.nombre }}</h2>
+            <div class="mt-2">
+                <span class="badge bg-primary-subtle text-primary fs-6 px-3 py-2 rounded-pill">
+                    {% if examen_activo.tipo_evaluacion == 'stage2' %}Modo actual: Stage 2 (1 hora){% else %}Modo actual: ECOE (8 min){% endif %}
+                </span>
+            </div>
+            {% else %}
+            <h2 class="fw-bold text-danger mb-0">Sin Convocatoria Activa</h2>
+            <p class="text-muted small mb-0 mt-1">Espera a que el equipo organizador inicie una evaluación desde la PC Maestra.</p>
+            {% endif %}
+        </div>
+
+        <h3 class="fw-bold text-dark mb-4"><i class="bi bi-compass-fill text-primary"></i> Selecciona tu Etapa de Evaluación</h3>
+        
+        <!-- Opciones de Etapa -->
+        <div class="row g-4">
+            <!-- Etapa 2 -->
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow rounded-4 hover-translate-y p-3" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; transition: all 0.3s ease;">
+                    <div class="card-body d-flex flex-column justify-content-between text-start p-3">
+                        <div>
+                            <div class="fs-1 mb-3">⚡</div>
+                            <h4 class="card-title fw-extrabold fs-3 mb-2">Etapa 2</h4>
+                            <p class="card-text text-white-50 fs-5">Accede al caso clínico extendido, examen físico y tratamiento detallado de cada estación.</p>
+                        </div>
+                        <div class="mt-4">
+                            <span class="badge bg-white-20 text-white border border-white-50 rounded-pill px-3 py-2 mb-3 d-inline-block fs-6"><i class="bi bi-clock-fill"></i> Tiempo: 60 minutos</span>
+                            <a href="{{ url_for('evaluado.estaciones', etapa='etapa2') }}" class="btn btn-light btn-lg w-100 fw-bold fs-5 shadow">Ver Estaciones <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Etapa 3 / ECOE -->
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow rounded-4 hover-translate-y p-3" style="background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: white; transition: all 0.3s ease;">
+                    <div class="card-body d-flex flex-column justify-content-between text-start p-3">
+                        <div>
+                            <div class="fs-1 mb-3">🩺</div>
+                            <h4 class="card-title fw-extrabold fs-3 mb-2">Etapa 3 / ECOE</h4>
+                            <p class="card-text text-white-50 fs-5">Revisa el caso breve, datos principales y requerimientos esenciales de la estación clínica.</p>
+                        </div>
+                        <div class="mt-4">
+                            <span class="badge bg-white-20 text-white border border-white-50 rounded-pill px-3 py-2 mb-3 d-inline-block fs-6"><i class="bi bi-clock-fill"></i> Tiempo: 8 minutos</span>
+                            <a href="{{ url_for('evaluado.estaciones', etapa='ecoe') }}" class="btn btn-light btn-lg w-100 fw-bold fs-5 shadow">Ver Estaciones <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+    .hover-translate-y:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.15) !important;
+    }
+    .bg-white-20 {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+    }
+    .fw-extrabold {
+        font-weight: 800 !important;
+    }
+</style>
+{% endblock %}

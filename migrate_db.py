@@ -97,6 +97,27 @@ def migrate():
         else:
             print(f"Error tablet_show_stage2: {e}")
             
+    # Crear tabla estacion_contenido_evaluado
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS estacion_contenido_evaluado (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                estacion_id VARCHAR(50) NOT NULL,
+                etapa VARCHAR(20) NOT NULL,
+                seccion VARCHAR(50) NOT NULL,
+                titulo VARCHAR(200),
+                contenido TEXT,
+                orden INTEGER DEFAULT 1,
+                visible BOOLEAN NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME,
+                FOREIGN KEY (estacion_id) REFERENCES estacion (id) ON DELETE CASCADE
+            );
+        """)
+        print("Tabla estacion_contenido_evaluado creada con éxito o ya existe.")
+    except Exception as e:
+        print(f"Error creando tabla estacion_contenido_evaluado: {e}")
+            
     conn.commit()
     conn.close()
     print("Migración completada.")

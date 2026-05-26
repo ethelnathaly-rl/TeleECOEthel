@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <div>
+        <h1 class="mb-0">Editar Contenido para Evaluados</h1>
+        <p class="text-muted fs-5 mb-0">Estación: <strong>{{ estacion.nombre }}</strong></p>
+    </div>
+    <a href="{{ url_for('master.estaciones_contenido_evaluado', id=estacion.id) }}" class="btn btn-secondary fs-5">Volver al Listado</a>
+</div>
+
+{% include "includes/alerts.html" ignore missing %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-warning">
+            <div class="card-header bg-warning text-dark fw-bold">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Modificar Contenido Clínico</h5>
+            </div>
+            <div class="card-body bg-light">
+                <form method="POST" action="{{ url_for('master.estaciones_contenido_evaluado_editar', contenido_id=contenido.id) }}">
+                    <!-- Etapa -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Etapa / Nivel *</label>
+                        <select class="form-select fs-5" name="etapa" required>
+                            <option value="etapa2" {% if contenido.etapa == 'etapa2' %}selected{% endif %}>Etapa 2 (1 hora - Detallado)</option>
+                            <option value="ecoe" {% if contenido.etapa == 'ecoe' %}selected{% endif %}>Etapa 3 / ECOE (8 min - Breve)</option>
+                        </select>
+                        <div class="form-text">Diferencia el contenido para el examen de 1 hora o el de 8 min.</div>
+                    </div>
+                    
+                    <!-- Sección -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Sección *</label>
+                        <select class="form-select fs-5" name="seccion" required>
+                            <option value="caso_clinico" {% if contenido.seccion == 'caso_clinico' %}selected{% endif %}>📖 Caso clínico</option>
+                            <option value="examen_fisico" {% if contenido.seccion == 'examen_fisico' %}selected{% endif %}>🫁 Examen físico</option>
+                            <option value="examenes_auxiliares" {% if contenido.seccion == 'examenes_auxiliares' %}selected{% endif %}>🧪 Exámenes auxiliares</option>
+                            <option value="tratamiento" {% if contenido.seccion == 'tratamiento' %}selected{% endif %}>💊 Tratamiento</option>
+                            <option value="indicaciones" {% if contenido.seccion == 'indicaciones' %}selected{% endif %}>📋 Indicaciones</option>
+                        </select>
+                        <div class="form-text">Categoría en la que se agrupará el contenido en el acordeón.</div>
+                    </div>
+
+                    <!-- Título -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Título de la Sección</label>
+                        <input type="text" class="form-control fs-5" name="titulo" value="{{ contenido.titulo or '' }}" placeholder="Ej: Datos Iniciales del Paciente" required>
+                    </div>
+
+                    <!-- Contenido -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Contenido Clínico</label>
+                        <textarea class="form-control fs-5" name="contenido" rows="8" placeholder="Escribe aquí toda la información clínica detallada..." required>{{ contenido.contenido or '' }}</textarea>
+                    </div>
+
+                    <!-- Orden y Visibilidad -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Orden</label>
+                            <input type="number" class="form-control fs-5" name="orden" value="{{ contenido.orden }}" required min="1">
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="visible" name="visible" {% if contenido.visible %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="visible">Visible</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-warning py-2 fs-5 text-dark fw-bold"><i class="bi bi-save"></i> Guardar Cambios</button>
+                        <a href="{{ url_for('master.estaciones_contenido_evaluado', id=estacion.id) }}" class="btn btn-outline-secondary py-2 fs-5">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

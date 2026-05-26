@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for, Response
-from app.models.models import Examen, ExamenAlumno, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle
+from app.models.models import Examen, ExamenAlumno, Alumno, Estacion, Categoria, Criterio, Evaluacion, EvaluacionDetalle, EstacionContenidoEvaluado
 from extensions import db
 try:
     import fcntl
@@ -126,9 +126,17 @@ def dashboard():
         for est in estaciones:
             eval_record = evaluaciones.get(est.id)
             if eval_record:
-                notas_estaciones[est.id] = {'estado': True, 'puntaje': eval_record.puntaje_total}
+                notas_estaciones[est.id] = {
+                    'estado': True,
+                    'puntaje': eval_record.puntaje_total,
+                    'comentarios': eval_record.comentarios or ""
+                }
             else:
-                notas_estaciones[est.id] = {'estado': False, 'puntaje': 0.0}
+                notas_estaciones[est.id] = {
+                    'estado': False,
+                    'puntaje': 0.0,
+                    'comentarios': ""
+                }
         
         resultados.append({
             'id': alu.id,
@@ -818,3 +826,80 @@ def toggle_visibility():
         'tipo_evaluacion': examen_activo.tipo_evaluacion,
         'timer_remaining': examen_activo.timer_remaining
     }
+
+@master_bp.route('/estaciones/contenido-evaluado/<id>', methods=['GET', 'POST'])
+def estaciones_contenido_evaluado(id):
+    estacion = Estacion.query.get_or_404(id)
+    if request.method == 'POST':
+        etapa = request.form.get('etapa')
+        seccion = request.form.get('seccion')
+        titulo = request.form.get('titulo', '').strip()
+        contenido = request.form.get('contenido', '').strip()
+        orden = int(request.form.get('orden', '1'))
+        visible = 'visible' in request.form
+        
+        nuevo_contenido = EstacionContenidoEvaluado(
+            estacion_id=id,
+            etapa=etapa,
+            seccion=seccion,
+            titulo=titulo or None,
+            contenido=contenido or None,
+            orden=orden,
+            visible=visible
+        )
+        db.session.add(nuevo_contenido)
+        db.session.commit()
+        flash('Contenido de evaluado agregado con éxito.', 'success')
+        return redirect(url_for('master.estaciones_contenido_evaluado', id=id))
+        
+    contenidos = EstacionContenidoEvaluado.query.filter_by(estacion_id=id).order_by(
+        EstacionContenidoEvaluado.etapa,
+        EstacionContenidoEvaluado.seccion,
+        EstacionContenidoEvaluado.orden
+    ).all()
+    
+    return render_template(
+        'master_contenido_evaluado.html',
+        estacion=estacion,
+        contenidos=contenidos
+    )
+
+@master_bp.route('/estaciones/contenido-evaluado/editar/<int:contenido_id>', methods=['GET', 'POST'])
+def estaciones_contenido_evaluado_editar(contenido_id):
+    contenido = EstacionContenidoEvaluado.query.get_or_404(contenido_id)
+    estacion = Estacion.query.get(contenido.estacion_id)
+    
+    if request.method == 'POST':
+        contenido.etapa = request.form.get('etapa')
+        contenido.seccion = request.form.get('seccion')
+        contenido.titulo = request.form.get('titulo', '').strip() or None
+        contenido.contenido = request.form.get('contenido', '').strip() or None
+        contenido.orden = int(request.form.get('orden', '1'))
+        contenido.visible = 'visible' in request.form
+        
+        db.session.commit()
+        flash('Contenido de evaluado actualizado con éxito.', 'success')
+        return redirect(url_for('master.estaciones_contenido_evaluado', id=estacion.id))
+        
+    return render_template(
+        'master_contenido_evaluado_editar.html',
+        estacion=estacion,
+        contenido=contenido
+    )
+
+@master_bp.route('/estaciones/contenido-evaluado/eliminar/<int:contenido_id>', methods=['POST'])
+def estaciones_contenido_evaluado_eliminar(contenido_id):
+    contenido = EstacionContenidoEvaluado.query.get_or_404(contenido_id)
+    estacion_id = contenido.estacion_id
+    db.session.delete(contenido)
+    db.session.commit()
+    flash('Contenido de evaluado eliminado con éxito.', 'success')
+    return redirect(url_for('master.estaciones_contenido_evaluado', id=estacion_id))
+
+@master_bp.route('/estaciones/contenido-evaluado/toggle/<int:contenido_id>', methods=['POST'])
+def estaciones_contenido_evaluado_toggle(contenido_id):
+    contenido = EstacionContenidoEvaluado.query.get_or_404(contenido_id)
+    contenido.visible = not contenido.visible
+    db.session.commit()
+    flash('Visibilidad del contenido actualizada.', 'success')
+    return redirect(url_for('master.estaciones_contenido_evaluado', id=contenido.estacion_id))

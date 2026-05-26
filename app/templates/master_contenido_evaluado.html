@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <div>
+        <h1 class="mb-0">Contenido para Evaluados</h1>
+        <p class="text-muted fs-5 mb-0">Estación: <strong>{{ estacion.nombre }}</strong></p>
+    </div>
+    <a href="{{ url_for('master.estaciones_admin') }}" class="btn btn-secondary fs-5">Volver a Estaciones</a>
+</div>
+
+{% include "includes/alerts.html" ignore missing %}
+
+<div class="row">
+    <!-- Formulario para agregar contenido -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm border-dark">
+            <div class="card-header bg-dark text-white fw-bold">
+                <h5 class="mb-0"><i class="bi bi-plus-circle-fill"></i> Agregar Contenido Clínico</h5>
+            </div>
+            <div class="card-body bg-light">
+                <form method="POST" action="{{ url_for('master.estaciones_contenido_evaluado', id=estacion.id) }}">
+                    <!-- Etapa -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Etapa / Nivel *</label>
+                        <select class="form-select fs-5" name="etapa" required>
+                            <option value="etapa2">Etapa 2 (1 hora - Detallado)</option>
+                            <option value="ecoe">Etapa 3 / ECOE (8 min - Breve)</option>
+                        </select>
+                        <div class="form-text">Diferencia el contenido para el examen de 1 hora o el de 8 min.</div>
+                    </div>
+                    
+                    <!-- Sección -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Sección *</label>
+                        <select class="form-select fs-5" name="seccion" required>
+                            <option value="caso_clinico">📖 Caso clínico</option>
+                            <option value="examen_fisico">🫁 Examen físico</option>
+                            <option value="examenes_auxiliares">🧪 Exámenes auxiliares</option>
+                            <option value="tratamiento">💊 Tratamiento</option>
+                            <option value="indicaciones">📋 Indicaciones</option>
+                        </select>
+                        <div class="form-text">Categoría en la que se agrupará el contenido en el acordeón.</div>
+                    </div>
+
+                    <!-- Título -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Título de la Sección</label>
+                        <input type="text" class="form-control fs-5" name="titulo" placeholder="Ej: Datos Iniciales del Paciente" required>
+                    </div>
+
+                    <!-- Contenido -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Contenido Clínico</label>
+                        <textarea class="form-control fs-5" name="contenido" rows="6" placeholder="Escribe aquí toda la información clínica detallada..." required></textarea>
+                    </div>
+
+                    <!-- Orden y Visibilidad -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Orden</label>
+                            <input type="number" class="form-control fs-5" name="orden" value="1" required min="1">
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="visible" name="visible" checked>
+                                <label class="form-check-label fw-bold" for="visible">Visible</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-dark py-2 fs-5"><i class="bi bi-save"></i> Guardar Contenido</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listado de Contenido existente -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-secondary h-100">
+            <div class="card-header bg-secondary text-white fw-bold">
+                <h5 class="mb-0"><i class="bi bi-list-task"></i> Contenidos Registrados</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Etapa</th>
+                                <th>Sección</th>
+                                <th>Título</th>
+                                <th class="text-center">Orden</th>
+                                <th class="text-center">Visibilidad</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in contenidos %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if c.etapa == 'etapa2' %}bg-primary{% else %}bg-info text-dark{% endif %} fs-6">
+                                        {% if c.etapa == 'etapa2' %}Etapa 2 (1h){% else %}ECOE (8m){% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary fs-6">
+                                        {% if c.seccion == 'caso_clinico' %}📖 Caso clínico{% endif %}
+                                        {% if c.seccion == 'examen_fisico' %}🫁 Examen físico{% endif %}
+                                        {% if c.seccion == 'examenes_auxiliares' %}🧪 Exámenes aux{% endif %}
+                                        {% if c.seccion == 'tratamiento' %}💊 Tratamiento{% endif %}
+                                        {% if c.seccion == 'indicaciones' %}📋 Indicaciones{% endif %}
+                                    </span>
+                                </td>
+                                <td class="fw-bold">{{ c.titulo or '-' }}</td>
+                                <td class="text-center fw-bold">{{ c.orden }}</td>
+                                <td class="text-center">
+                                    <form method="POST" action="{{ url_for('master.estaciones_contenido_evaluado_toggle', contenido_id=c.id) }}">
+                                        {% if c.visible %}
+                                        <button type="submit" class="btn btn-sm btn-success py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm"><i class="bi bi-eye-fill"></i> Visible</button>
+                                        {% else %}
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm"><i class="bi bi-eye-slash-fill"></i> Oculto</button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="{{ url_for('master.estaciones_contenido_evaluado_editar', contenido_id=c.id) }}" class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1 shadow-sm"><i class="bi bi-pencil-fill"></i> Editar</a>
+                                        
+                                        <form method="POST" action="{{ url_for('master.estaciones_contenido_evaluado_eliminar', contenido_id=c.id) }}" onsubmit="return confirm('¿Seguro que deseas eliminar este contenido?');">
+                                            <button type="submit" class="btn btn-sm btn-danger d-inline-flex align-items-center gap-1 shadow-sm"><i class="bi bi-trash-fill"></i> Eliminar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted p-4"><i class="bi bi-info-circle fs-3 d-block mb-2"></i>No hay contenidos de evaluado registrados para esta estación. ¡Agrega el primero a la izquierda!</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

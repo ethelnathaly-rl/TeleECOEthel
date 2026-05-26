@@ -68,3 +68,7 @@ Thumbs.db
 
 # Reportes locales de diagnóstico
 artifacts/
+
+# Dependencias Node.js
+node_modules/
+

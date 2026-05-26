@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <div>
+        <h1 class="mb-0 fw-extrabold text-dark">
+            {% if etapa == 'etapa2' %}Estaciones - Etapa 2{% else %}Estaciones - Etapa 3 / ECOE{% endif %}
+        </h1>
+        <p class="text-secondary fs-5 mb-0">Selecciona la estación clínica que tienes asignada para ver su contenido.</p>
+    </div>
+    <a href="{{ url_for('evaluado.index') }}" class="btn btn-outline-secondary fs-5 py-2 px-3 shadow-xs"><i class="bi bi-arrow-left"></i> Cambiar Etapa</a>
+</div>
+
+{% include "includes/alerts.html" ignore missing %}
+
+<!-- Listado de Estaciones -->
+<div class="row g-4 mt-2">
+    {% for e in estaciones %}
+    <div class="col-md-6 col-lg-4 col-xl-3">
+        <div class="card border-0 shadow rounded-4 h-100 hover-translate-y bg-white" style="transition: all 0.3s ease;">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge bg-secondary-subtle text-secondary fs-6 rounded-pill px-3 py-2">Estación {{ e.orden }}</span>
+                        <span class="fs-4">🏥</span>
+                    </div>
+                    <h3 class="card-title fw-bold text-dark mb-2" style="font-size: 1.35rem;">{{ e.nombre }}</h3>
+                    <p class="text-muted small">ID: <code>{{ e.id }}</code></p>
+                </div>
+                <div class="mt-4 pt-2">
+                    <a href="{{ url_for('evaluado.estacion_contenido', etapa=etapa, estacion_id=e.id) }}" class="btn btn-primary btn-lg w-100 fw-bold shadow-xs">
+                        Ingresar a Estación <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <div class="alert alert-secondary p-5 border-0 rounded-4">
+            <div class="fs-1 mb-3">📭</div>
+            <h4 class="fw-bold">No hay estaciones activas</h4>
+            <p class="text-muted mb-0">No se encontraron estaciones habilitadas para evaluación en este momento.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .hover-translate-y:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 25px rgba(0,0,0,0.12) !important;
+    }
+    .fw-extrabold {
+        font-weight: 800 !important;
+    }
+</style>
+{% endblock %}

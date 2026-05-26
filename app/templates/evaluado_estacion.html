@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 mt-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge {% if etapa == 'etapa2' %}bg-primary{% else %}bg-info text-dark{% endif %} fs-6 rounded-pill px-3 py-1 shadow-sm">
+                {% if etapa == 'etapa2' %}Etapa 2 (1 hora){% else %}Etapa 3 / ECOE (8 min){% endif %}
+            </span>
+            <span class="text-muted">·</span>
+            <span class="small text-secondary fw-semibold">Estación {{ estacion.orden }}</span>
+        </div>
+        <h1 class="display-5 fw-bold text-dark mb-0">{{ estacion.nombre }}</h1>
+    </div>
+    <a href="{{ url_for('evaluado.estaciones', etapa=etapa) }}" class="btn btn-outline-secondary fs-5 py-2 px-3 shadow-xs"><i class="bi bi-arrow-left"></i> Cambiar Estación</a>
+</div>
+
+{% include "includes/alerts.html" ignore missing %}
+
+<!-- Contenedor del Caso Clínico -->
+<div class="row">
+    <!-- Panel Izquierdo: Resumen/Ayuda -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow border-0 rounded-4 p-4 text-white" style="background: linear-gradient(135deg, #1f4068 0%, #162447 100%);">
+            <div class="text-center my-3">
+                <span class="display-1">📋</span>
+            </div>
+            <h3 class="fw-bold mb-3">Información del Evaluado</h3>
+            <p class="text-white-50">Estás visualizando el caso clínico y los requerimientos correspondientes a esta estación.</p>
+            
+            <hr class="border-white-50 my-4">
+            
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="fs-2 text-warning">⏱️</div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-white">Tiempo Referencial</h5>
+                    <p class="mb-0 text-white-50">
+                        {% if etapa == 'etapa2' %}60 minutos en total{% else %}8 minutos en total{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="fs-2 text-info">🩺</div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-white">Rol en la Estación</h5>
+                    <p class="mb-0 text-white-50">Revisa la información en las pestañas de la derecha antes de iniciar con el jurado evaluador.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Acordeón Clínico -->
+    <div class="col-lg-8">
+        <div class="accordion accordion-flush shadow-sm rounded-4 border overflow-hidden bg-white" id="clinicoAccordion">
+            
+            <!-- Caso Clínico -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingCaso">
+                    <button class="accordion-button fs-4 fw-bold py-3 text-dark d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCaso" aria-expanded="true" aria-controls="collapseCaso">
+                        <span>📖</span> Caso Clínico / Anamnesis
+                    </button>
+                </h2>
+                <div id="collapseCaso" class="accordion-collapse collapse show" aria-labelledby="headingCaso" data-bs-parent="#clinicoAccordion">
+                    <div class="accordion-body bg-light p-4">
+                        {% if contenidos_por_seccion.get('caso_clinico') %}
+                            {% for c in contenidos_por_seccion['caso_clinico'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-5 mb-0"><i class="bi bi-info-circle"></i> No hay información del caso clínico cargada para esta estación.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Examen Físico -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingExamen">
+                    <button class="accordion-button collapsed fs-4 fw-bold py-3 text-dark d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExamen" aria-expanded="false" aria-controls="collapseExamen">
+                        <span>🫁</span> Examen Físico / Signos Vitales
+                    </button>
+                </h2>
+                <div id="collapseExamen" class="accordion-collapse collapse" aria-labelledby="headingExamen" data-bs-parent="#clinicoAccordion">
+                    <div class="accordion-body bg-light p-4">
+                        {% if contenidos_por_seccion.get('examen_physico') %}
+                            {% for c in contenidos_por_seccion['examen_physico'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% elif contenidos_por_seccion.get('examen_fisico') %}
+                            {% for c in contenidos_por_seccion['examen_fisico'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-5 mb-0"><i class="bi bi-info-circle"></i> No hay información del examen físico cargada para esta estación.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exámenes Auxiliares -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingAuxiliares">
+                    <button class="accordion-button collapsed fs-4 fw-bold py-3 text-dark d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAuxiliares" aria-expanded="false" aria-controls="collapseAuxiliares">
+                        <span>🧪</span> Exámenes Auxiliares / Laboratorio
+                    </button>
+                </h2>
+                <div id="collapseAuxiliares" class="accordion-collapse collapse" aria-labelledby="headingAuxiliares" data-bs-parent="#clinicoAccordion">
+                    <div class="accordion-body bg-light p-4">
+                        {% if contenidos_por_seccion.get('examenes_auxiliares') %}
+                            {% for c in contenidos_por_seccion['examenes_auxiliares'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-5 mb-0"><i class="bi bi-info-circle"></i> No hay información de exámenes auxiliares cargada para esta estación.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tratamiento -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTratamiento">
+                    <button class="accordion-button collapsed fs-4 fw-bold py-3 text-dark d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTratamiento" aria-expanded="false" aria-controls="collapseTratamiento">
+                        <span>💊</span> Tratamiento / Plan Terapéutico
+                    </button>
+                </h2>
+                <div id="collapseTratamiento" class="accordion-collapse collapse" aria-labelledby="headingTratamiento" data-bs-parent="#clinicoAccordion">
+                    <div class="accordion-body bg-light p-4">
+                        {% if contenidos_por_seccion.get('tratamiento') %}
+                            {% for c in contenidos_por_seccion['tratamiento'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-5 mb-0"><i class="bi bi-info-circle"></i> No hay información del tratamiento cargada para esta estación.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indicaciones -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingIndicaciones">
+                    <button class="accordion-button collapsed fs-4 fw-bold py-3 text-dark d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIndicaciones" aria-expanded="false" aria-controls="collapseIndicaciones">
+                        <span>📋</span> Indicaciones al Paciente / Criterios de Alta
+                    </button>
+                </h2>
+                <div id="collapseIndicaciones" class="accordion-collapse collapse" aria-labelledby="headingIndicaciones" data-bs-parent="#clinicoAccordion">
+                    <div class="accordion-body bg-light p-4">
+                        {% if contenidos_por_seccion.get('indicaciones') %}
+                            {% for c in contenidos_por_seccion['indicaciones'] %}
+                                <div class="bg-white p-3 border rounded shadow-xs mb-3">
+                                    {% if c.titulo %}<h5 class="fw-bold text-primary mb-2">{{ c.titulo }}</h5>{% endif %}
+                                    <div class="fs-5 text-dark" style="white-space: pre-wrap;">{{ c.contenido|safe }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-5 mb-0"><i class="bi bi-info-circle"></i> No hay indicaciones especiales cargadas para esta estación.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .accordion-button:not(.collapsed) {
+        background-color: #f8fafd !important;
+        color: #0d6efd !important;
+        box-shadow: inset 0 -1px 0 rgba(0,0,0,.125) !important;
+    }
+</style>
+{% endblock %}
