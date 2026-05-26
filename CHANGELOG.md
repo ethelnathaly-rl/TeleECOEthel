@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.0] - 2026-05-26
+
+### Agregado
+
+- Centro de Conexión Premium para Tablets en el Panel Maestro con pestañas interactivas para Red Local (Wi-Fi) y Acceso Público (Túnel).
+- Generación de códigos QR dinámicos según el tipo de conexión activa y el tipo de ruteo de red.
+- Botones de "Copiar Enlace" con micro-animaciones y confirmación visual instantánea.
+- Formulario de Observaciones de Grupo Directo para la Etapa 2 en la tablet, permitiendo a los evaluadores calificar observaciones de todos los alumnos en una sola vista sin cambiar de página.
+- Guardado rápido asíncrono (AJAX) y auto-guardado de observaciones al desenfocar (onblur) el área de comentarios.
+- Temporizador flotante en tiempo real integrado en la pantalla principal de selección de alumnos para la tablet.
+
 ## [1.1.0] - 2026-05-22
 
 ### Agregado

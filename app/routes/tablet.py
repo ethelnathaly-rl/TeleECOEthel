@@ -396,6 +396,7 @@ def seleccionar_alumno(estacion_id):
         flash('Esta estación está inactiva y no está disponible para evaluación.', 'warning')
         return redirect(url_for('tablet.seleccionar_estacion'))
     examen_activo = get_active_exam()
+    comentarios_alumnos = {}
     if not examen_activo:
         flash('No hay examen activo. Crea o activa un examen desde la PC maestra.', 'warning')
         alumnos = []
@@ -408,10 +409,10 @@ def seleccionar_alumno(estacion_id):
             .order_by(Alumno.grupo, Alumno.nombre)
             .all()
         )
-        evaluados_ids = {
-            e.alumno_id: True
-            for e in Evaluacion.query.filter_by(estacion_id=estacion_id, examen_id=examen_activo.id).all()
-        }
+        evaluaciones = Evaluacion.query.filter_by(estacion_id=estacion_id, examen_id=examen_activo.id).all()
+        evaluados_ids = {e.alumno_id: True for e in evaluaciones}
+        comentarios_alumnos = {e.alumno_id: e.comentarios or "" for e in evaluaciones}
+
     grupos_alumnos = build_student_groups(alumnos)
     return render_template(
         'tablet_seleccionar.html',
@@ -419,6 +420,7 @@ def seleccionar_alumno(estacion_id):
         alumnos=alumnos,
         grupos_alumnos=grupos_alumnos,
         evaluados_ids=evaluados_ids,
+        comentarios_alumnos=comentarios_alumnos,
         examen_activo=examen_activo
     )
 
@@ -544,3 +546,35 @@ def reset_evaluacion(estacion_id, alumno_id):
 def exito(estacion_id):
     estacion = Estacion.query.get_or_404(estacion_id)
     return render_template('tablet_exito.html', estacion=estacion)
+
+@tablet_bp.route('/api/save-observation', methods=['POST'])
+def save_observation():
+    data = request.get_json() or {}
+    estacion_id = data.get('estacion_id')
+    alumno_id = data.get('alumno_id')
+    comentarios = data.get('comentarios', '').strip()
+    
+    examen_activo = get_active_exam()
+    if not examen_activo:
+        return jsonify({"status": "error", "message": "No hay examen activo"}), 400
+        
+    evaluacion = Evaluacion.query.filter_by(
+        estacion_id=estacion_id,
+        alumno_id=alumno_id,
+        examen_id=examen_activo.id
+    ).first()
+    
+    if not evaluacion:
+        evaluacion = Evaluacion(
+            estacion_id=estacion_id,
+            alumno_id=alumno_id,
+            examen_id=examen_activo.id,
+            puntaje_total=0.0
+        )
+        db.session.add(evaluacion)
+    
+    evaluacion.comentarios = comentarios or None
+    evaluacion.fecha_evaluacion = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({"status": "success", "message": "Observación guardada correctamente"})

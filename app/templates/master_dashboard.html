@@ -1,20 +1,89 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="alert alert-info shadow-sm border-info">
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-        <div class="d-flex align-items-center">
-            <div class="fs-1 me-3">📡</div>
-            <div>
-                <h4 class="alert-heading mb-1">Conexión para Tablets</h4>
-                <a class="mb-0 fs-5 text-decoration-none" href="{{ tablet_url }}">{{ tablet_url }}</a>
-            </div>
+<!-- CENTRO DE CONEXIÓN PARA TABLETS PREMIUM -->
+<div class="card shadow-sm border-info mb-4" style="border-left: 5px solid #0dcaf0; overflow: hidden; background: linear-gradient(135deg, #f8fafd 0%, #edf4fc 100%);">
+    <div class="card-body p-3">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="fs-3">📡</span>
+            <h4 class="card-title mb-0 fw-bold text-dark">Centro de Conexión para Tablets / Laptops</h4>
         </div>
-        <div class="d-flex align-items-center gap-3 bg-white border rounded p-2 shadow-sm">
-            <img src="{{ url_for('master.tablet_qr') }}" width="116" height="116" alt="QR para abrir tablets">
-            <div class="small text-muted d-none d-sm-block">Scanear<br>con tablets</div>
+        
+        <!-- Pestañas de Conexión -->
+        <ul class="nav nav-pills mb-3 gap-2" id="connectionTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active px-3 py-2 fw-semibold d-flex align-items-center gap-2" id="local-tab" data-bs-toggle="pill" data-bs-target="#local-conn" type="button" role="tab" aria-controls="local-conn" aria-selected="true" onclick="changeQR('local')">
+                    <i class="bi bi-wifi fs-5"></i> Red Local (Recomendado)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-3 py-2 fw-semibold d-flex align-items-center gap-2" id="public-tab" data-bs-toggle="pill" data-bs-target="#public-conn" type="button" role="tab" aria-controls="public-conn" aria-selected="false" onclick="changeQR('public')">
+                    <i class="bi bi-globe fs-5"></i> Acceso Público (Túnel)
+                </button>
+            </li>
+        </ul>
+        
+        <div class="row align-items-center">
+            <div class="col-lg-8 col-md-7 mb-3 mb-md-0">
+                <div class="tab-content" id="connectionTabsContent">
+                    <!-- Red Local Tab -->
+                    <div class="tab-pane fade show active" id="local-conn" role="tabpanel" aria-labelledby="local-tab">
+                        <div class="bg-white p-3 border rounded shadow-xs mb-2">
+                            <div class="text-muted small fw-bold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">URL DE CONEXIÓN LOCAL:</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <a href="{{ local_url }}" id="localUrlText" class="fs-4 fw-bold text-decoration-none text-primary text-break" style="word-break: break-all;" target="_blank">{{ local_url }}</a>
+                                <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 py-1" onclick="copyToClipboard('{{ local_url }}', 'btnCopyLocal')">
+                                    <i id="btnCopyLocalIcon" class="bi bi-clipboard"></i>
+                                    <span id="btnCopyLocalText">Copiar</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-secondary small mt-2">
+                            <i class="bi bi-info-circle-fill text-info"></i> <strong>Ideal para la sede:</strong> Las tablets evaluadoras y esta PC deben estar conectadas a la misma red Wi-Fi. <strong>No requiere Internet</strong> y es ultrarrápido y estable.
+                        </div>
+                    </div>
+                    
+                    <!-- Acceso Público Tab -->
+                    <div class="tab-pane fade" id="public-conn" role="tabpanel" aria-labelledby="public-tab">
+                        {% if public_url %}
+                        <div class="bg-white p-3 border rounded shadow-xs mb-2">
+                            <div class="text-muted small fw-bold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">URL DE TÚNEL DE INTERNET:</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <a href="{{ public_url }}" id="publicUrlText" class="fs-4 fw-bold text-decoration-none text-info text-break" style="word-break: break-all;" target="_blank">{{ public_url }}</a>
+                                <button class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1 py-1" onclick="copyToClipboard('{{ public_url }}', 'btnCopyPublic')">
+                                    <i id="btnCopyPublicIcon" class="bi bi-clipboard"></i>
+                                    <span id="btnCopyPublicText">Copiar</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-secondary small mt-2">
+                            <i class="bi bi-exclamation-triangle-fill text-warning"></i> Usar solo si las tablets están en redes móviles (4G/5G) o fuera de la red local. Requiere que el túnel de internet esté activo en la PC maestra.
+                            <br><i class="bi bi-shield-fill-check text-success"></i> <em>La primera vez que abras el enlace en cada tablet, si aparece un aviso de seguridad del proveedor del túnel, haz clic en <strong>Aceptar / Continuar / Descargar</strong> para habilitar la vista de evaluación.</em>
+                        </div>
+                        {% else %}
+                        <div class="bg-light p-3 border rounded text-center text-muted">
+                            <i class="bi bi-cloud-slash fs-2 d-block mb-1"></i>
+                            Túnel público no activo en el archivo <code>.env</code>.
+                            <br><span class="small">Si necesitas conectar tablets remotas, agrega la variable <code>TABLET_URL</code> en tu archivo de configuración.</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contenedor del Código QR -->
+            <div class="col-lg-4 col-md-5">
+                <div class="d-flex flex-column align-items-center bg-white p-3 border rounded shadow-sm text-center">
+                    <div class="position-relative" style="width: 140px; height: 140px;">
+                        <img id="connectionQR" src="{{ url_for('master.tablet_qr', type='local') }}" width="140" height="140" alt="QR para abrir tablets" class="img-fluid">
+                    </div>
+                    <div class="small fw-bold text-dark mt-2" id="qrLabel">Escanear para Red Local</div>
+                    <div class="small text-muted" style="font-size: 0.75rem;">Apunta la cámara de la tablet para conectar al instante</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
 
 <div class="row mb-3">
     <!-- Card del Examen Activo -->
@@ -177,6 +246,39 @@
 </div>
 
 <script>
+    // Funciones del Centro de Conexiones para Tablets
+    function copyToClipboard(text, btnId) {
+        navigator.clipboard.writeText(text).then(() => {
+            const btnText = document.getElementById(btnId + 'Text');
+            const btnIcon = document.getElementById(btnId + 'Icon');
+            if (btnText && btnIcon) {
+                const originalText = btnText.textContent;
+                btnText.textContent = ' ¡Copiado!';
+                btnText.classList.add('text-success', 'fw-bold');
+                btnIcon.className = 'bi bi-check-lg text-success';
+                
+                setTimeout(() => {
+                    btnText.textContent = originalText;
+                    btnText.classList.remove('text-success', 'fw-bold');
+                    btnIcon.className = 'bi bi-clipboard';
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Error al copiar el enlace: ', err);
+        });
+    }
+
+    function changeQR(type) {
+        const qrImage = document.getElementById('connectionQR');
+        const qrLabel = document.getElementById('qrLabel');
+        if (qrImage) {
+            qrImage.src = "{{ url_for('master.tablet_qr') }}?type=" + type + "&t=" + new Date().getTime();
+        }
+        if (qrLabel) {
+            qrLabel.textContent = type === 'local' ? 'Escanear para Red Local' : 'Escanear para Túnel Público';
+        }
+    }
+
     // Configurar duración máxima en segundos según el tipo de examen activo
     const examenTipo = "{{ examen_activo.tipo_evaluacion if (examen_activo and examen_activo.tipo_evaluacion) else 'ecoe' }}";
     let maxSeconds = (examenTipo === 'stage2') ? 3600 : 480; // 3600s = 60 minutos, 480s = 8 minutos

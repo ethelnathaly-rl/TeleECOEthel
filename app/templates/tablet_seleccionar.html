@@ -1,15 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+    #tabletTimerContainer {
+        position: fixed !important;
+        bottom: 25px !important;
+        right: 25px !important;
+        z-index: 9999 !important;
+        box-shadow: 0 6px 22px rgba(0,0,0,0.35) !important;
+        border: 2px solid #ffc107 !important;
+        font-size: 1.6rem !important;
+        background-color: rgba(33, 37, 41, 0.96) !important;
+        border-radius: 12px !important;
+        
+        /* Criterios rígidos de tamaño para evitar deformaciones */
+        width: 170px !important;
+        height: 62px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        
+        /* Prevenir zoom, selección o resaltados al arrastrar */
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        touch-action: none !important;
+    }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">Evaluando: <span class="text-primary">{{ estacion.nombre }}</span></h2>
-    <a href="{{ url_for('tablet.seleccionar_estacion') }}" class="btn btn-secondary">Volver / Cambiar Estación</a>
+    <a href="{{ url_for('tablet.seleccionar_estacion') }}" class="btn btn-secondary shadow-sm">Volver / Cambiar Estación</a>
+</div>
+
+<!-- TEMPORIZADOR FLOTANTE -->
+<div id="tabletTimerContainer" class="d-flex align-items-center bg-dark text-warning border border-warning rounded px-3 py-1 shadow-sm font-monospace fs-5 fw-bold" style="letter-spacing: 1px;">
+    <i class="bi bi-stopwatch-fill text-danger me-2"></i><span id="tabletTimerDisplay">--:--</span>
 </div>
 
 <div class="alert alert-warning text-center fs-5 shadow-sm">
     {% if examen_activo %}
     Examen activo: <strong>{{ examen_activo.nombre }}</strong><br>
     {% endif %}
+    {% if examen_activo and examen_activo.tablet_show_stage2 and not examen_activo.tablet_show_ecoe %}
+    <strong>Etapa 2 (Solo Observaciones) Activa:</strong> Escribe y guarda observaciones de los alumnos de tu grupo directamente desde esta pantalla.
+    {% else %}
     Seleccione al alumno que tiene enfrente para iniciar o <strong>editar</strong> su evaluación.
+    {% endif %}
 </div>
 
 {% macro alumno_button(alumno) %}
@@ -39,7 +78,29 @@
             <div class="card-header bg-primary text-white text-center fs-4">GRUPO {{ grupo.numero }}</div>
             <div class="card-body p-3">
                 {% for alumno in grupo.alumnos %}
-                {{ alumno_button(alumno) }}
+                    {% if examen_activo and examen_activo.tablet_show_stage2 and not examen_activo.tablet_show_ecoe %}
+                        <!-- VISTA DE OBSERVACIONES DIRECTAS (ETAPA 2 SIMPLIFICADA) -->
+                        <div class="bg-white p-3 border rounded shadow-xs mb-3 border-secondary-subtle">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fs-5 fw-bold text-dark">{{ alumno.nombre }}</span>
+                                <span id="badgeState_{{ alumno.id }}" class="badge {% if comentarios_alumnos.get(alumno.id) %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if comentarios_alumnos.get(alumno.id) %}<i class="bi bi-check-circle-fill"></i> Guardado{% else %}Pendiente{% endif %}
+                                </span>
+                            </div>
+                            <div class="mb-2">
+                                <textarea id="obs_{{ alumno.id }}" class="form-control shadow-xs" rows="2" style="font-size: 0.95rem; resize: none;" placeholder="Escribe aquí las observaciones cualitativas del participante..." onblur="autoSaveObservation('{{ alumno.id }}')">{{ comentarios_alumnos.get(alumno.id) or '' }}</textarea>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" id="btnSaveObs_{{ alumno.id }}" class="btn btn-sm btn-primary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm" onclick="manualSaveObservation('{{ alumno.id }}')">
+                                    <i id="iconSaveObs_{{ alumno.id }}" class="bi bi-save"></i>
+                                    <span id="textSaveObs_{{ alumno.id }}">Guardar</span>
+                                </button>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- ECOE NORMAL CHECKLISTS -->
+                        {{ alumno_button(alumno) }}
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -83,6 +144,7 @@
 </div>
 
 <script>
+    // Configuración general del modal
     document.addEventListener('DOMContentLoaded', function () {
         var modalOpciones = document.getElementById('modalOpcionesEval');
         if (modalOpciones) {
@@ -97,6 +159,179 @@
                 modalOpciones.querySelector('#formResetEval').setAttribute('action', resetUrl);
             });
         }
+    });
+
+    // --- LÓGICA DE GUARDADO DE OBSERVACIONES AJAX ---
+    function saveObservationAjax(alumnoId, isAuto) {
+        const obsTextarea = document.getElementById('obs_' + alumnoId);
+        const obsValue = obsTextarea ? obsTextarea.value.trim() : '';
+        const btnText = document.getElementById('textSaveObs_' + alumnoId);
+        const btnIcon = document.getElementById('iconSaveObs_' + alumnoId);
+        const btn = document.getElementById('btnSaveObs_' + alumnoId);
+        const badgeState = document.getElementById('badgeState_' + alumnoId);
+
+        if (!isAuto && btn) btn.disabled = true;
+
+        fetch("{{ url_for('tablet.save_observation') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                estacion_id: "{{ estacion.id }}",
+                alumno_id: alumnoId,
+                comentarios: obsValue
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Actualizar badge de estado
+                if (badgeState) {
+                    if (obsValue !== '') {
+                        badgeState.className = 'badge bg-success';
+                        badgeState.innerHTML = '<i class="bi bi-check-circle-fill"></i> Guardado';
+                    } else {
+                        badgeState.className = 'badge bg-secondary';
+                        badgeState.textContent = 'Pendiente';
+                    }
+                }
+                
+                // Feedback visual en el botón si fue clic manual
+                if (!isAuto && btnText && btnIcon) {
+                    const originalText = btnText.textContent;
+                    const originalIconClass = btnIcon.className;
+                    const originalBtnClass = btn.className;
+                    
+                    btnText.textContent = ' ¡Guardado!';
+                    btnText.classList.add('fw-bold');
+                    btnIcon.className = 'bi bi-check2-circle';
+                    btn.className = 'btn btn-sm btn-success py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm';
+                    
+                    setTimeout(() => {
+                        btnText.textContent = originalText;
+                        btnText.classList.remove('fw-bold');
+                        btnIcon.className = originalIconClass;
+                        btn.className = originalBtnClass;
+                        btn.disabled = false;
+                    }, 2000);
+                } else if (btn) {
+                    btn.disabled = false;
+                }
+            } else {
+                if (btn) btn.disabled = false;
+                alert("Error al guardar observación: " + data.message);
+            }
+        })
+        .catch(err => {
+            if (btn) btn.disabled = false;
+            console.error("Error saving observation:", err);
+        });
+    }
+
+    function manualSaveObservation(alumnoId) {
+        saveObservationAjax(alumnoId, false);
+    }
+
+    function autoSaveObservation(alumnoId) {
+        saveObservationAjax(alumnoId, true);
+    }
+
+    // --- LÓGICA DEL TEMPORIZADOR FLOTANTE ---
+    let localInterval = null;
+    let serverEndTime = null;
+    let serverState = null;
+    let maxSeconds = 480;
+    
+    function updateTabletDisplay(sec) {
+        const mins = Math.floor(sec / 60);
+        const secs = sec % 60;
+        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        const display = document.getElementById('tabletTimerDisplay');
+        if (display) {
+            display.textContent = timeStr;
+            
+            // Visual feedback for low time
+            const alertThreshold = (maxSeconds === 3600) ? 300 : 30;
+            const container = document.getElementById('tabletTimerContainer');
+            if (container) {
+                if (sec > 0 && sec <= alertThreshold) {
+                    container.classList.remove('border-warning', 'text-warning', 'border-danger', 'text-danger');
+                    container.classList.add('border-danger', 'text-danger');
+                } else if (sec === 0) {
+                    container.classList.remove('border-warning', 'text-warning', 'border-danger', 'text-danger');
+                    container.classList.add('border-danger', 'text-danger');
+                } else {
+                    container.classList.remove('border-danger', 'text-danger');
+                    container.classList.add('border-warning', 'text-warning');
+                }
+            }
+        }
+    }
+    
+    function startLocalTick() {
+        if (localInterval) clearInterval(localInterval);
+        
+        localInterval = setInterval(() => {
+            if (serverState === 'running' && serverEndTime) {
+                const now = Date.now();
+                const diff = serverEndTime - now;
+                if (diff <= 0) {
+                    clearInterval(localInterval);
+                    updateTabletDisplay(0);
+                } else {
+                    const sec = Math.floor(diff / 1000);
+                    updateTabletDisplay(sec);
+                }
+            } else {
+                clearInterval(localInterval);
+            }
+        }, 1000);
+    }
+    
+    function pollTimerSync() {
+        fetch('/api/timer/sync')
+            .then(res => res.json())
+            .then(data => {
+                maxSeconds = data.max_seconds || 480;
+                serverState = data.state;
+                
+                if (data.state === 'running' && data.end_time) {
+                    const newEndTime = parseInt(data.end_time);
+                    if (serverEndTime !== newEndTime || !localInterval) {
+                        serverEndTime = newEndTime;
+                        startLocalTick();
+                    }
+                    const diff = serverEndTime - Date.now();
+                    updateTabletDisplay(Math.max(0, Math.floor(diff / 1000)));
+                } else if (data.state === 'paused') {
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(parseInt(data.remaining || 0));
+                } else if (data.state === 'finished') {
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(0);
+                } else { // stopped
+                    if (localInterval) {
+                        clearInterval(localInterval);
+                        localInterval = null;
+                    }
+                    updateTabletDisplay(maxSeconds);
+                }
+            })
+            .catch(err => console.error("Error polling timer sync:", err));
+    }
+    
+    // Iniciar polling al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+        pollTimerSync();
+        setInterval(pollTimerSync, 2000);
     });
 </script>
 {% endblock %}

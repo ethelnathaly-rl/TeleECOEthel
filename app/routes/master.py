@@ -137,10 +137,16 @@ def dashboard():
             'notas_estaciones': notas_estaciones
         })
         
-    tablet_url = get_tablet_url()
+    local_ip = get_local_ip()
+    local_url = f"http://{local_ip}:5000/tablet/"
+    public_url = os.environ.get('TABLET_URL') or None
+    tablet_url = public_url if public_url else local_url
+
     return render_template(
         'master_dashboard.html',
-        ip=get_local_ip(),
+        ip=local_ip,
+        local_url=local_url,
+        public_url=public_url,
         tablet_url=tablet_url,
         estaciones=estaciones,
         resultados=resultados,
@@ -152,6 +158,14 @@ def tablet_qr():
     import qrcode
     from qrcode.image.svg import SvgPathImage
 
+    url_type = request.args.get('type', 'default')
+    if url_type == 'local':
+        qr_data = f"http://{get_local_ip()}:5000/tablet/"
+    elif url_type == 'public':
+        qr_data = os.environ.get('TABLET_URL') or f"http://{get_local_ip()}:5000/tablet/"
+    else:
+        qr_data = get_tablet_url()
+
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -159,7 +173,7 @@ def tablet_qr():
         border=2,
         image_factory=SvgPathImage,
     )
-    qr.add_data(get_tablet_url())
+    qr.add_data(qr_data)
     qr.make(fit=True)
 
     output = io.BytesIO()
