@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.2] - 2026-05-26
+
+### Agregado
+
+- Súper Acercamiento Interactivo (Zoom 2.5x) con paneo dinámico en tiempo real para todas las imágenes clínicas del **Modo Evaluado**.
+- Paneo dinámico basado en la posición del mouse (`mousemove`) para usuarios de escritorio.
+- Paneo táctil dinámico basado en arrastre (`touchmove`) para usuarios de tablets, con anulación de scroll nativo para una experiencia fluida y concentrada.
+- Controles de instrucciones interactivas dinámicas (`zoomInstructions`) en el header del lightbox que cambian de estado y guían al estudiante.
+- Fondo y contenedor de la imagen optimizados (`bg-black` y centrado absoluto) para asemejar a una estación PACS de radiología médica profesional.
+
 ## [1.3.1] - 2026-05-26
 
 ### Agregado

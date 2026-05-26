@@ -197,17 +197,20 @@
     }
 </style>
 
-<!-- Modal de Zoom de Imágenes (Lightbox) -->
+<!-- Modal de Zoom de Imágenes (Lightbox con Súper Acercamiento) -->
 <div class="modal fade" id="imageZoomModal" tabindex="-1" aria-labelledby="imageZoomModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content bg-dark border-0 rounded-4 shadow-lg overflow-hidden">
-            <div class="modal-header border-0 text-white pb-0">
-                <h5 class="modal-title fw-bold" id="imageZoomModalLabel">Visualización Detallada</h5>
+            <div class="modal-header border-0 text-white pb-0 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="modal-title fw-bold" id="imageZoomModalLabel">Visualización Detallada</h5>
+                    <span class="text-white-50 small" id="zoomInstructions"><i class="bi bi-info-circle"></i> Haz clic sobre la imagen para hacer un súper acercamiento (Zoom 2.5x)</span>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center p-4">
-                <div class="position-relative d-inline-block">
-                    <img src="" id="zoomedImage" class="img-fluid rounded-3 border border-secondary shadow-sm" style="max-height: 80vh; object-fit: contain; width: auto; max-width: 100%;">
+            <div class="modal-body text-center p-4 d-flex justify-content-center align-items-center" style="overflow: hidden; min-height: 500px; background-color: #0b0c10;">
+                <div class="position-relative overflow-hidden rounded-3 border border-secondary shadow-lg bg-black" id="zoomedImageContainer" style="cursor: zoom-in; max-width: 100%; display: inline-block; touch-action: none;">
+                    <img src="" id="zoomedImage" class="img-fluid" style="max-height: 75vh; object-fit: contain; width: auto; max-width: 100%; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: center center;">
                 </div>
             </div>
         </div>
@@ -233,9 +236,91 @@ document.addEventListener('DOMContentLoaded', function() {
                 zoomedImg.setAttribute('alt', alt);
                 document.getElementById('imageZoomModalLabel').textContent = alt;
                 
+                // Resetear estado de zoom al abrir
+                resetZoom();
+                
                 const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
                 zoomModal.show();
             });
+        });
+    }
+
+    // Lógica del Súper Acercamiento (Zoom 2.5x con Paneo Dinámico)
+    const imageContainer = document.getElementById('zoomedImageContainer');
+    const zoomedImg = document.getElementById('zoomedImage');
+    const zoomInstructions = document.getElementById('zoomInstructions');
+    const modalElement = document.getElementById('imageZoomModal');
+    
+    let isZoomed = false;
+    
+    function resetZoom() {
+        isZoomed = false;
+        if (zoomedImg) {
+            zoomedImg.style.transform = 'scale(1)';
+            zoomedImg.style.transformOrigin = 'center center';
+        }
+        if (imageContainer) {
+            imageContainer.style.cursor = 'zoom-in';
+        }
+        if (zoomInstructions) {
+            zoomInstructions.innerHTML = '<i class="bi bi-info-circle"></i> Haz clic sobre la imagen para hacer un súper acercamiento (Zoom 2.5x)';
+            zoomInstructions.className = 'text-white-50 small';
+        }
+    }
+    
+    if (imageContainer && zoomedImg) {
+        // Toggle Zoom on click
+        imageContainer.addEventListener('click', function() {
+            if (!isZoomed) {
+                // Zoom in
+                isZoomed = true;
+                zoomedImg.style.transform = 'scale(2.5)';
+                imageContainer.style.cursor = 'zoom-out';
+                if (zoomInstructions) {
+                    zoomInstructions.innerHTML = '<i class="bi bi-arrows-move"></i> Súper Acercamiento ACTIVO. Mueve el cursor o arrastra en tablets para panear la imagen.';
+                    zoomInstructions.className = 'text-warning small fw-semibold';
+                }
+            } else {
+                // Zoom out
+                resetZoom();
+            }
+        });
+        
+        // Paneo dinámico con Mouse Move (Desktop)
+        imageContainer.addEventListener('mousemove', function(e) {
+            if (!isZoomed) return;
+            const rect = imageContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const xPercent = (x / rect.width) * 100;
+            const yPercent = (y / rect.height) * 100;
+            
+            zoomedImg.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+        });
+        
+        // Paneo dinámico con Touch Move (Tablets / Móviles)
+        imageContainer.addEventListener('touchmove', function(e) {
+            if (!isZoomed) return;
+            // Prevenir scroll de la página al arrastrar sobre la radiografía
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const rect = imageContainer.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            const xPercent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+            const yPercent = Math.max(0, Math.min(100, (y / rect.height) * 100));
+            
+            zoomedImg.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+        }, { passive: false });
+    }
+    
+    // Resetear el zoom al cerrar el modal
+    if (modalElement) {
+        modalElement.addEventListener('hide.bs.modal', function() {
+            resetZoom();
         });
     }
 });
