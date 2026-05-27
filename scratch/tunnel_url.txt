@@ -1,1 +1,1 @@
-ERROR: An error occurred while downloading ngrok from https://bin.ngrok.com/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip: <urlopen error [WinError 10054] Se ha forzado la interrupción de una conexión existente por el host remoto>
+https://eiano-191-98-176-32.run.pinggy-free.link/tablet/
